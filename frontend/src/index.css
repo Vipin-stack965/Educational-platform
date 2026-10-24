@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+@import "tailwindcss";
+
+*{
+  font-family: "Roboto", sans-serif;
+   -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none; 
+  
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: #0f0f0f;
+  color: #fff;
+}
+
+[data-theme="light"] body {
+  background-color: #f9f9f9;
+  color: #0f0f0f;
+}
+
+[data-theme="light"] [class*="bg-[#0f0f0f]"] {
+  background-color: #f9f9f9 !important;
+}
+
+[data-theme="light"] [class*="bg-[#121212]"],
+[data-theme="light"] [class*="bg-[#181818]"],
+[data-theme="light"] [class*="bg-[#1f1f1f]"],
+[data-theme="light"] [class*="bg-[#212121]"],
+[data-theme="light"] [class*="bg-[#272727]"],
+[data-theme="light"] [class*="bg-[#333]"] {
+  background-color: #fff !important;
+}
+
+[data-theme="light"] [class~="text-white"] {
+  color: #0f0f0f !important;
+}
+
+[data-theme="light"] [class~="bg-blue-600"][class~="text-white"],
+[data-theme="light"] [class~="bg-blue-500"][class~="text-white"],
+[data-theme="light"] [class~="bg-red-600"][class~="text-white"] {
+  color: #fff !important;
+}
+
+[data-theme="light"] [class~="text-gray-300"],
+[data-theme="light"] [class~="text-gray-400"] {
+  color: #606060 !important;
+}
+
+[data-theme="light"] [class*="border-gray-700"],
+[data-theme="light"] [class*="border-gray-800"] {
+  border-color: #d1d5db !important;
+}

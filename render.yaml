@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: playtube-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: CORS_ORIGIN
+        value: https://playtube-frontend.onrender.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URL
+        sync: false
+      - key: CLOUDINARY_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: USER_EMAIL
+        sync: false
+      - key: USER_PASSWORD
+        sync: false
+
+  - type: web
+    name: playtube-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_SERVER_URL
+        value: https://playtube-backend.onrender.com
+      - key: VITE_FIREBASE_APIKEY
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

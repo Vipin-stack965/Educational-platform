@@ -1,3 +1,4 @@
+
 services:
   - type: web
     name: edutube-backend
@@ -40,7 +41,6 @@ services:
   - type: web
     name: edutube-frontend
     runtime: static
-    plan: free
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist

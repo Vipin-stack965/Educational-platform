@@ -19,12 +19,14 @@ const shortSchema = new mongoose.Schema({
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true },
   title: { type: String, required: true },
   shortUrl: { type: String, required: true },
+  moderationCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "ModerationCase", unique: true, sparse: true },
   views: { type: Number, default: 0 },
   tags: [{ type: String }],
   description:{ type: String },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   saveBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  downloadedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   comments: [commentSchema]
 }, { timestamps: true });

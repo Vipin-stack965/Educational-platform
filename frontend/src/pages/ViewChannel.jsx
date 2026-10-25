@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import create from "../assets/create.png"
@@ -36,7 +37,7 @@ function ViewChannel() {
       if (!file) return
       const maxSize = type === "avatar" ? 4 * 1024 * 1024 : 6 * 1024 * 1024
       if (!file.type.startsWith("image/")) {
-        showCustomAlert("Please choose an image file.")
+        showCustomAlert(t("Please choose an image file."))
         return
       }
       if (file.size > maxSize) {
@@ -59,8 +60,12 @@ function ViewChannel() {
           photoUrl: result.data.avatar || userData?.photoUrl,
           channel: result.data
         }))
-        setSelectedImage(null)
-        showCustomAlert(`${selectedImage.type === "avatar" ? "Profile picture" : "Channel banner"} updated.`)
+        if (result.data.warning) {
+          showCustomAlert(result.data.warning)
+        } else {
+          setSelectedImage(null)
+          showCustomAlert(`${selectedImage.type === "avatar" ? "Profile picture" : "Channel banner"} updated.`)
+        }
       } catch (error) {
         showCustomAlert(error.response?.data?.message || "Unable to update the image. Please try again.")
       } finally {
@@ -77,7 +82,7 @@ function ViewChannel() {
         {visibleBanner ? (
           <img
             src={visibleBanner}
-            alt="Banner"
+            alt={t("Banner")}
             className="w-full h-full object-cover rounded-lg"
           />
         ) : (
@@ -87,13 +92,10 @@ function ViewChannel() {
           type="button"
           onClick={() => bannerInputRef.current?.click()}
           className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/75 px-4 py-2 text-sm font-medium text-white hover:bg-black"
-          aria-label="Choose channel banner"
+          aria-label={t("Choose channel banner")}
         >
-          <FaImage /> Edit banner
-        </button>
-        <p className="absolute bottom-4 left-4 rounded bg-black/60 px-3 py-1 text-xs text-white">
-          Recommended: 2560 × 1440 px
-        </p>
+          <FaImage />{t(" Edit banner\n        ")}</button>
+        <p className="absolute bottom-4 left-4 rounded bg-black/60 px-3 py-1 text-xs text-white">{t("\n          Recommended: 2560 × 1440 px\n        ")}</p>
         <input
           ref={bannerInputRef}
           type="file"
@@ -111,7 +113,7 @@ function ViewChannel() {
             {visibleAvatar ? (
               <img
                 src={visibleAvatar}
-                alt={userData?.isGuest ? "Profile picture" : `${channelData?.name || "Channel"} profile picture`}
+                alt={userData?.isGuest ? t("Profile picture") : `${channelData?.name || t("Channel")} ${t("profile picture")}`}
                 className="h-28 w-28 rounded-full border-4 border-gray-500 bg-[#212121] object-cover"
               />
             ) : (
@@ -123,7 +125,7 @@ function ViewChannel() {
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#0f0f0f] bg-[#272727] text-white hover:bg-[#3f3f3f]"
-              aria-label="Choose channel profile picture"
+              aria-label={t("Choose channel profile picture")}
             >
               <FaCamera />
             </button>
@@ -137,56 +139,45 @@ function ViewChannel() {
           </div>
           {!userData?.isGuest && (
             <>
-              <h1 className="text-2xl font-bold mt-3">{channelData?.name || "Channel Name"}</h1>
+              <h1 className="text-2xl font-bold mt-3">{channelData?.name || t("Channel Name")}</h1>
               <p className="text-gray-400">@{userData?.username}</p>
             </>
           )}
-          <p className="mt-1 text-xs text-gray-400">Click the camera or banner button to change channel images.</p>
-          <p className="text-sm text-gray-400 mt-1">
-            More about this channel... <span className="text-blue-400 cursor-pointer">{userData?.channel?.category}</span>
+          <p className="mt-1 text-xs text-gray-400">{t("Click the camera or banner button to change channel images.")}</p>
+          <p className="text-sm text-gray-400 mt-1">{t("\n            More about this channel... ")}<span className="text-blue-400 cursor-pointer">{userData?.channel?.category}</span>
           </p>
           {selectedImage && (
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-sm text-gray-300">Previewing {selectedImage.type === "avatar" ? "profile picture" : "banner"}</span>
+              <span className="text-sm text-gray-300">{t("Previewing ")}{selectedImage.type === "avatar" ? t("profile picture") : t("banner")}</span>
               <button
                 type="button"
                 onClick={saveSelectedImage}
                 disabled={savingImage}
                 className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-200 disabled:opacity-60"
               >
-                {savingImage ? "Saving..." : "Save"}
+                {savingImage ? t("Saving...") : t("Save")}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedImage(null)}
                 disabled={savingImage}
                 className="rounded-full bg-[#272727] px-4 py-2 text-sm font-medium text-white hover:bg-[#3f3f3f] disabled:opacity-60"
-              >
-                Cancel
-              </button>
+              >{t("\n                Cancel\n              ")}</button>
             </div>
           )}
           {/* Buttons */}
           <div className="flex gap-4 mt-4">
-            <button className="bg-white text-black px-4 py-1 rounded-full font-medium" onClick={()=>navigate("/updatechannel")}>
-              Customize channel
-            </button>
-            <button className="bg-[#272727] px-4 py-1 rounded-full font-medium" onClick={()=>navigate("/ptstudio/dashboard")}>
-              Manage videos
-            </button>
+            <button className="bg-white text-black px-4 py-1 rounded-full font-medium" onClick={()=>navigate("/updatechannel")}>{t("\n              Customize channel\n            ")}</button>
+            <button className="bg-[#272727] px-4 py-1 rounded-full font-medium" onClick={()=>navigate("/ptstudio/dashboard")}>{t("\n              Manage videos\n            ")}</button>
           </div>
         </div>
 
         {/* Empty State */}
         <div className="flex flex-col items-center mt-16">
-          <img src={create} alt="Create" className="w-20" />
-          <p className="mt-4 font-medium">Create content on any device</p>
-          <p className="text-gray-400 text-sm text-center">
-            Upload and record at home or on the go. Everything you make public will appear here.
-          </p>
-          <button className="bg-white text-black mt-4 px-5 py-1 rounded-full font-medium" onClick={()=>navigate("/createpage")}>
-            + Create
-          </button>
+          <img src={create} alt={t("Create")} className="w-20" />
+          <p className="mt-4 font-medium">{t("Create content on any device")}</p>
+          <p className="text-gray-400 text-sm text-center">{t("\n            Upload and record at home or on the go. Everything you make public will appear here.\n          ")}</p>
+          <button className="bg-white text-black mt-4 px-5 py-1 rounded-full font-medium" onClick={()=>navigate("/createpage")}>{t("\n            + Create\n          ")}</button>
         </div>
       </div>
     </div>

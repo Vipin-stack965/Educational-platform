@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -31,9 +32,7 @@ const RevenuePage = () => {
 
   if (!channelData) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        Loading channel data...
-      </div>
+      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Loading channel data...\n      ")}</div>
     );
   }
 
@@ -64,23 +63,21 @@ const RevenuePage = () => {
     <div className="w-full min-h-screen p-4 sm:p-6 text-white space-y-8 mb-[50px]">
       
   <h1 className="text-2xl font-bold flex items-center gap-2">
-        <RiMoneyRupeeCircleFill className="text-orange-400" size={30} />
-        Revenue Analytics
-      </h1>
+        <RiMoneyRupeeCircleFill className="text-orange-400" size={30} />{t("\n        Revenue Analytics\n      ")}</h1>
 
       {/* Revenue Rules */}
       <div className="bg-gradient-to-r from-orange-700 to-orange-400 rounded-lg p-4 shadow-md">
-        <h2 className="text-lg font-semibold mb-2 text-gray-900">💡 Revenue Rules</h2>
+        <h2 className="text-lg font-semibold mb-2 text-gray-900">{t("💡 Revenue Rules")}</h2>
         <ul className="text-sm space-y-1 text-gray-800">
-          <li>🎥 Videos → ₹50 per 1,000 views (after first 1,000)</li>
-          <li>🎬 Shorts → ₹50 per 10,000 views (after first 10,000)</li>
+          <li>{t("🎥 Videos → ₹50 per 1,000 views (after first 1,000)")}</li>
+          <li>{t("🎬 Shorts → ₹50 per 10,000 views (after first 10,000)")}</li>
         </ul>
       </div>
 
 
       {/* Videos Revenue Chart */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-3">Videos Revenue</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("Videos Revenue")}</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={videoRevenueData}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -95,7 +92,7 @@ const RevenuePage = () => {
 
       {/* Shorts Revenue Chart */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-3">Shorts Revenue</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("Shorts Revenue")}</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={shortRevenueData}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -110,7 +107,7 @@ const RevenuePage = () => {
 
       {/* Total Revenue Card */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4 text-center">
-        <h2 className="text-lg font-semibold mb-2">Total Estimated Revenue</h2>
+        <h2 className="text-lg font-semibold mb-2">{t("Total Estimated Revenue")}</h2>
         <p className="text-3xl font-bold text-yellow-400">₹{totalRevenue}</p>
       </div>
     </div>

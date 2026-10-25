@@ -27,7 +27,7 @@ The user query is: "${input}"
 - Do not explain, only return keyword(s).`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
     });
 
@@ -143,7 +143,7 @@ Examples:
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: process.env.GEMINI_MODERATION_MODEL?.trim() || "gemini-3.8-flash",
       contents: prompt,
     });
 

@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -62,7 +63,7 @@ const ManageVideo = () => {
       );
       dispatch(setAllVideoData(updatedVideos));
 
-      showCustomAlert("Video updated successfully");
+      showCustomAlert(t("Video updated successfully"));
       
     } catch (error) {
       showCustomAlert(error.response?.data?.message || "Update failed");
@@ -72,7 +73,7 @@ const ManageVideo = () => {
 
   // Delete Video
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this video?")) return;
+    if (!window.confirm(t("Are you sure you want to delete this video?"))) return;
 
     setLoading(true);
     try {
@@ -83,7 +84,7 @@ const ManageVideo = () => {
       // remove from redux
       dispatch(setAllVideoData(allVideoData.filter((v) => v._id !== videoId)));
 
-      showCustomAlert("Video deleted successfully");
+      showCustomAlert(t("Video deleted successfully"));
       navigate("/");
     } catch (error) {
       showCustomAlert(error.response?.data?.message || "Delete failed");
@@ -102,7 +103,7 @@ const ManageVideo = () => {
   return (
     <div className="min-h-screen  text-white px-4 py-6 flex justify-center">
       <div className="w-full max-w-2xl bg-[#212121] rounded-2xl shadow-xl p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-center">Manage Video</h2>
+        <h2 className="text-2xl font-bold text-center">{t("Manage Video")}</h2>
 
         {/* Video Preview */}
        
@@ -110,7 +111,7 @@ const ManageVideo = () => {
         {/* Title */}
         <input
           type="text"
-          placeholder="Video Title"
+          placeholder={t("Video Title")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -118,7 +119,7 @@ const ManageVideo = () => {
 
         {/* Description */}
         <textarea
-          placeholder="Video Description"
+          placeholder={t("Video Description")}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -128,7 +129,7 @@ const ManageVideo = () => {
         {/* Tags */}
         <input
           type="text"
-          placeholder="Tags (comma separated)"
+          placeholder={t("Tags (comma separated)")}
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -136,23 +137,21 @@ const ManageVideo = () => {
 
         {/* Thumbnail Upload */}
         <label className="block cursor-pointer">
-          <p className="mb-2 text-gray-300">Thumbnail</p>
+          <p className="mb-2 text-gray-300">{t("Thumbnail")}</p>
           {thumbnail ? (
             <img
               src={URL.createObjectURL(thumbnail)}
-              alt="thumbnail"
+              alt={t("thumbnail")}
               className="w-full rounded-lg border border-gray-700 mb-2"
             />
           ) : video.thumbnail ? (
             <img
               src={video.thumbnail}
-              alt="thumbnail"
+              alt={t("thumbnail")}
               className="w-full rounded-lg border border-gray-700 mb-2"
             />
           ) : (
-            <div className="w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 border border-gray-700 mb-2">
-              Click to upload thumbnail
-            </div>
+            <div className="w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 border border-gray-700 mb-2">{t("\n              Click to upload thumbnail\n            ")}</div>
           )}
           <input
             type="file"
@@ -170,16 +169,14 @@ const ManageVideo = () => {
             className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:bg-gray-600"
           >
             {loading ? <ClipLoader size={20} color="white" /> : <MdSaveAlt size={20} />}
-            {loading ? "Saving..." : "Update Video"}
+            {loading ? t("Saving...") : t("Update Video")}
           </button>
           <button
             onClick={handleDelete}
             disabled={loading}
             className="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:bg-gray-600"
           >
-            <MdDelete size={20} />
-            Delete Video
-          </button>
+            <MdDelete size={20} />{t("\n            Delete Video\n          ")}</button>
         </div>
       </div>
     </div>

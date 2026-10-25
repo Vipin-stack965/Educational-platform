@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from "react";
 import { IoIosArrowForward } from "react-icons/io";
 import {  useDispatch, useSelector } from "react-redux";
@@ -36,8 +37,13 @@ function UpdateChannel() {
 
 
   const handleUpdateChannel = async () => {
+    if (!channelName.trim()) {
+      showCustomAlert(t("Please enter a channel name."));
+      setStep(1);
+      return;
+    }
     const formData = new FormData()
-    formData.append("name",channelName);
+    formData.append("name",channelName.trim());
     formData.append("description",description);
     formData.append("category",category);
     if (avatar) formData.append("avatar", avatar);
@@ -46,15 +52,15 @@ function UpdateChannel() {
     try {
       const result = await axios.post(serverUrl + "/api/user/update-channel" ,formData , {withCredentials:true})
       console.log(result)
-      showCustomAlert("Channel Updated")
+      showCustomAlert(result.data.warning || "Channel Updated")
       dispatch(setChannelData(result.data))
       dispatch(setUserData({ ...userData, username: result.data.name, photoUrl: result.data.avatar || userData?.photoUrl, channel: result.data }))
       navigate("/")
-      setLoading(false)
       
     } catch (error) {
       console.log(error)
       showCustomAlert(error.response?.data?.message || "Unable to update channel. Please try again.")
+    } finally {
       setLoading(false)
     }
     
@@ -70,10 +76,8 @@ function UpdateChannel() {
           {/* Step 1 */}
           {step === 1 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Customize channel</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Choose a profile picture, channel name.
-              </p>
+              <h2 className="text-2xl font-semibold mb-4">{t("Customize channel")}</h2>
+              <p className="text-sm text-gray-400 mb-6">{t("\n                Choose a profile picture, channel name.\n              ")}</p>
 
               <div className="mb-6">
                 <ChannelImagePicker type="avatar" file={avatar} currentImage={channelData?.avatar} onChange={setAvatar} />
@@ -82,7 +86,7 @@ function UpdateChannel() {
               {/* Channel Name */}
               <input
                 type="text"
-                placeholder="Channel name"
+                placeholder={t("Channel name")}
                 className="w-full p-3 mb-4 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
@@ -94,17 +98,16 @@ function UpdateChannel() {
                 onClick={nextStep}
                 disabled={!channelName}
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 transition py-3 rounded-lg font-medium disabled:bg-gray-600"
-              >
-                Continue <IoIosArrowForward size={20} />
+              >{t("\n                Continue ")}<IoIosArrowForward size={20} />
               </button>
-              <span onClick={()=>navigate("/")} className=" w-full flex items-center justify-center text-sm text-blue-400 cursor-pointer hover:underline  mt-2">Back to Home Page</span>
+              <span onClick={()=>navigate("/")} className=" w-full flex items-center justify-center text-sm text-blue-400 cursor-pointer hover:underline  mt-2">{t("Back to Home Page")}</span>
             </>
           )}
 
           {/* Step 2 */}
           {step === 2 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Your Updated Channel</h2>
+              <h2 className="text-2xl font-semibold mb-4">{t("Your Updated Channel")}</h2>
               <div className="flex flex-col items-center mb-6">
                 <ChannelImagePicker type="avatar" file={avatar} currentImage={channelData?.avatar} onChange={setAvatar} />
                 <h3 className="mt-3 text-lg font-semibold">{channelName}</h3>
@@ -115,8 +118,7 @@ function UpdateChannel() {
                 <button
                   onClick={nextStep}
                   className="flex w-full items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg"
-                >
-                Continue and Customize Channel <IoIosArrowForward size={20} />
+                >{t("\n                Continue and Customize Channel ")}<IoIosArrowForward size={20} />
                 </button>
                 
               </div>
@@ -124,16 +126,14 @@ function UpdateChannel() {
               <button
                 onClick={prevStep}
                 className="mt-4 w-full flex items-center justify-center text-blue-400 hover:underline text-sm"
-              >
-                Back
-              </button>
+              >{t("\n                Back\n              ")}</button>
             </>
           )}
 
           {/* Step 3 */}
           {step === 3 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Customize Channel</h2>
+              <h2 className="text-2xl font-semibold mb-4">{t("Customize Channel")}</h2>
 
               {/* Banner Upload */}
               <div className="mb-4">
@@ -142,7 +142,7 @@ function UpdateChannel() {
 
               {/* Description */}
               <textarea
-                placeholder="Channel description"
+                placeholder={t("Channel description")}
                 className="w-full p-3 mb-4 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -152,7 +152,7 @@ function UpdateChannel() {
               <input
                 className="w-full p-3 mb-6 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={category}
-                placeholder="Category"
+                placeholder={t("Category")}
                 onChange={(e) => setCategory(e.target.value)}
               />
                 
@@ -161,15 +161,13 @@ function UpdateChannel() {
                 <button
                   onClick={prevStep}
                   className="bg-gray-700 hover:bg-gray-600 py-3 px-5 rounded-lg"
-                >
-                  Back
-                </button>
+                >{t("\n                  Back\n                ")}</button>
                 <button
                   onClick={handleUpdateChannel}
                   disabled={loading}
                   className="bg-blue-600 hover:bg-blue-700 py-3 px-5 rounded-lg"
                 >
-                {loading ? <ClipLoader size={20} color="white"/>:"Save"}
+                {loading ? <ClipLoader size={20} color="white"/>:t("Save")}
                 </button>
               </div>
             </>

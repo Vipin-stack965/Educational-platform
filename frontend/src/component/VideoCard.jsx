@@ -1,23 +1,46 @@
-import React from "react";
+import { t } from '../../utils/i18n.js';
+import React, { useState } from "react";
+import { FaPlay } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import NameAvatar from "./NameAvatar";
   
 
+export const VideoThumbnail = ({ src, title, className = "" }) => {
+  const [failed, setFailed] = useState(false);
 
+  if (!src || failed) {
+    return (
+      <div
+        role="img"
+        aria-label={title ? t("Video thumbnail unavailable") : t("Video thumbnail")}
+        className={`flex items-center justify-center bg-gradient-to-br from-[#252525] to-[#111] text-gray-400 ${className}`}
+      >
+        <FaPlay aria-hidden="true" />
+      </div>
+    );
+  }
 
+  return (
+    <img
+      src={src}
+      alt={title || t("Video thumbnail")}
+      onError={() => setFailed(true)}
+      className={className}
+    />
+  );
+};
 
-const VideoCard = ({ thumbnail, duration, channelLogo, title, channelName, views,id }) => {
+const VideoCard = ({ thumbnail, duration, channelLogo, title, channelName, views, id, isShort = false }) => {
   const navigate = useNavigate()
 
-
-   
   return (
-    <div className="w-[360px] cursor-pointer" onClick={()=>navigate(`/watch-video/${id}`)}>
+    <div className="w-[360px] cursor-pointer" onClick={() => navigate(`${isShort ? "/watch-short" : "/watch-video"}/${id}`)}>
       {/* Thumbnail */}
       <div className="relative">
-        <img
+        <VideoThumbnail
           src={thumbnail}
-          alt={title}
-          className="rounded-xl w-full h-[200px] border-1 border-gray-800 object-cover"
+          title={title}
+          className="rounded-xl w-full h-[200px] border border-gray-800 object-cover"
         />
         <span className="absolute bottom-2 right-2 bg-black text-white text-xs px-1 rounded">
           {duration}
@@ -27,10 +50,11 @@ const VideoCard = ({ thumbnail, duration, channelLogo, title, channelName, views
       {/* Info */}
       <div className="flex mt-3">
         {/* Channel Logo */}
-        <img
+        <NameAvatar
           src={channelLogo}
+          name={channelName}
           alt={channelName}
-          className="w-10 h-10 rounded-full mr-3"
+          className="mr-3 h-10 w-10 text-sm"
         />
 
         {/* Text Content */}
@@ -46,8 +70,7 @@ const VideoCard = ({ thumbnail, duration, channelLogo, title, channelName, views
                 : Number(views) >= 1_000
                 ? Math.floor(Number(views) / 1_000) + "K"
                 : Number(views) || 0
-            } views
-          </p>
+            }{t(" views\n          ")}</p>
         </div>
       </div>
     </div>

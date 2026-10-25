@@ -1,9 +1,10 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { SiYoutubeshorts } from "react-icons/si";
 import VideoCard from "../component/VideoCard";
 import ShortsCard from "../component/ShortsCard";
-import logo from "../assets/playtube1.png";
+import logo from "../assets/edutube-logo.svg";
 import { serverUrl } from "../config";
 
 // Helper to get duration
@@ -65,7 +66,7 @@ const LikedContentPage = () => {
   }, []);
 
   if (loading) {
-    return <p className="p-6">Loading liked content...</p>;
+    return <p className="p-6">{t("Loading liked content...")}</p>;
   }
 
   return (
@@ -75,9 +76,7 @@ const LikedContentPage = () => {
       {likedShorts.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mb-6 pt-[50px] border-b border-gray-300 pb-2 flex items-center gap-2">
-            <SiYoutubeshorts className="w-7 h-7 text-red-600" />
-            Liked Shorts
-          </h2>
+            <SiYoutubeshorts className="w-7 h-7 text-red-600" />{t("\n            Liked Shorts\n          ")}</h2>
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
             {likedShorts.map((short) => (
               <div key={short._id} className="flex-shrink-0">
@@ -99,9 +98,7 @@ const LikedContentPage = () => {
       {likedVideos.length > 0 && (
         <>
           <h2 className="text-2xl font-bold mb-6 pt-[50px] border-b border-gray-300 pb-2 flex items-center gap-2">
-            <img src={logo} className="w-7 h-7" alt="" />
-            Liked Videos
-          </h2>
+            <img src={logo} className="w-7 h-7" alt="" />{t("\n            Liked Videos\n          ")}</h2>
           <div className="flex flex-wrap gap-6 mb-12">
             {likedVideos.map((video) => (
               <VideoCard
@@ -122,7 +119,7 @@ const LikedContentPage = () => {
 
       {/* ✅ If nothing liked at all */}
       {likedShorts.length === 0 && likedVideos.length === 0 && (
-        <p className="mt-10 text-lg">You haven't liked any videos or shorts yet.</p>
+        <p className="mt-10 text-lg">{t("You haven't liked any videos or shorts yet.")}</p>
       )}
     </div>
   );

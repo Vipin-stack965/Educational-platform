@@ -1,6 +1,7 @@
 import Channel from "../model/channelModel.js";
-import uploadOnCloudinary from "../config/cloudinary.js";
+import uploadOnCloudinary, { getCloudinaryUploadErrorMessage } from "../config/cloudinary.js";
 import Short from "../model/shortModel.js";
+import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPublishing } from "../service/moderationEnforcement.js";
 
 
 
@@ -14,10 +15,12 @@ export const createShort = async (req, res) => {
       return res.status(400).json({ message: "Shorts video is required" });
     }
     if (!title?.trim() || !channelId) {
+      await removeUploadedTempFiles(req);
       return res.status(400).json({ message: "Short title and channel are required" });
     }
     const channel = await Channel.findOne({ _id: channelId, owner: req.userId });
     if (!channel) {
+      await removeUploadedTempFiles(req);
       return res.status(403).json({ message: "You can only publish to your own channel" });
     }
 
@@ -26,14 +29,59 @@ export const createShort = async (req, res) => {
       try {
         parsedTags = JSON.parse(tags);
         if (!Array.isArray(parsedTags) || !parsedTags.every(tag => typeof tag === "string")) {
+          await removeUploadedTempFiles(req);
           return res.status(400).json({ message: "Tags must be a list of text values" });
         }
       } catch {
+        await removeUploadedTempFiles(req);
         return res.status(400).json({ message: "Tags must be valid JSON" });
       }
     }
 
-    // Upload to Cloudinary
+    let screening;
+    try {
+      screening = await screenContentForPublishing({
+        req,
+        channel,
+        contentType: "short",
+        title: title.trim(),
+        description: description || "",
+        tags: parsedTags,
+        mediaFile: file,
+        channelCategory: channel.category,
+      });
+    } catch (error) {
+      console.error("AI educational review or agent handoff failed; Short was not published:", error);
+      await removeUploadedTempFiles(req);
+      return res.status(503).json({
+        message: "AI review or agent handoff is currently unavailable. The Short was not published; please try again later.",
+      });
+    }
+
+    if (screening.status === "pending_review") {
+      await removeUploadedTempFiles(req);
+      return res.status(202).json({
+        status: screening.status,
+        moderationCaseId: screening.caseId,
+        message: screening.reviewQueue === "agent"
+          ? "AI could not confirm the educational relevance. The Short was sent to the agent review queue."
+          : "AI could not confirm the educational relevance. The Short was sent for moderator review.",
+      });
+    }
+    if (screening.status === "rejected") {
+      await removeUploadedTempFiles(req);
+      clearBlockedAccountSession(res);
+      const isPermanent = screening.blockType === "permanent";
+      return res.status(403).json({
+        message: isPermanent
+          ? `This Short was not published. Channel violation ${screening.violationCount}/5: the account is permanently blocked.`
+          : `This Short was not published. Channel violation ${screening.violationCount}/5: the account is blocked for 3 hours and has been signed out.`,
+        violationCount: screening.violationCount,
+        blockType: screening.blockType,
+        blockedUntil: screening.blockedUntil,
+      });
+    }
+
     const videoUpload = await uploadOnCloudinary(file.path, {
       resourceType: "video",
       large: true
@@ -59,7 +107,8 @@ export const createShort = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating short:", error);
-    const uploadError = error.error?.message || error.message || "Unknown upload error";
+    await removeUploadedTempFiles(req);
+    const uploadError = getCloudinaryUploadErrorMessage(error, "Short video");
     res.status(500).json({ message: `Short upload failed: ${uploadError}` });
   }
 };
@@ -76,6 +125,48 @@ export const getAllShorts = async (req, res) => {
   } catch (error) {
     console.error("Error fetching shorts:", error);
 res.status(500).json({message : "Failed to fetch short"});
+  }
+};
+
+export const addShortToDownloads = async (req, res) => {
+  try {
+    const short = await Short.findByIdAndUpdate(
+      req.params.shortId,
+      { $addToSet: { downloadedBy: req.userId } },
+      { new: true }
+    );
+    if (!short) return res.status(404).json({ message: "Short not found" });
+    return res.status(200).json(short);
+  } catch (error) {
+    console.error("Error adding Short to account downloads:", error);
+    return res.status(500).json({ message: "Unable to update downloads" });
+  }
+};
+
+export const removeShortFromDownloads = async (req, res) => {
+  try {
+    const short = await Short.findByIdAndUpdate(
+      req.params.shortId,
+      { $pull: { downloadedBy: req.userId } },
+      { new: true }
+    );
+    if (!short) return res.status(404).json({ message: "Short not found" });
+    return res.status(200).json(short);
+  } catch (error) {
+    console.error("Error removing Short from account downloads:", error);
+    return res.status(500).json({ message: "Unable to remove Short from downloads" });
+  }
+};
+
+export const getDownloadedShorts = async (req, res) => {
+  try {
+    const shorts = await Short.find({ downloadedBy: req.userId })
+      .populate("channel", "name avatar")
+      .sort({ createdAt: -1 });
+    return res.status(200).json(shorts);
+  } catch (error) {
+    console.error("Error fetching account Short downloads:", error);
+    return res.status(500).json({ message: "Unable to load your downloads" });
   }
 };
 

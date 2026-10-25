@@ -1,5 +1,7 @@
+import { t } from '../../utils/i18n.js';
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import NameAvatar from "./NameAvatar";
 
 const ShortsCard = ({ shortUrl, title, channelName,avatar, views ,id}) => {
   const navigate = useNavigate()
@@ -24,8 +26,8 @@ const ShortsCard = ({ shortUrl, title, channelName,avatar, views ,id}) => {
           {title}
         </h3>
         <div className="flex items-center justify-start gap-1">
-          <img src={avatar} className="w-4 h-4 rounded-full " alt="" />
-<p className="text-xs text-gray-400">{channelName}</p>
+          <NameAvatar src={avatar} name={channelName} alt={channelName} className="h-4 w-4 text-[8px]" />
+          <p className="text-xs text-gray-400">{channelName}</p>
         </div>
         
         <p className="text-xs text-gray-400">{
@@ -34,7 +36,7 @@ const ShortsCard = ({ shortUrl, title, channelName,avatar, views ,id}) => {
                 : Number(views) >= 1_000
                 ? Math.floor(Number(views) / 1_000) + "K"
                 : Number(views) || 0
-            } views</p>
+            }{t(" views")}</p>
       </div>
     </div>
   );

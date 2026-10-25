@@ -1,9 +1,10 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { SiYoutubeshorts } from "react-icons/si";
 import VideoCard from "../component/VideoCard";
 import ShortsCard from "../component/ShortsCard";
-import logo from "../assets/playtube1.png";
+import logo from "../assets/edutube-logo.svg";
 import { useNavigate } from "react-router-dom";
 
 const getVideoDuration = (url, callback) => {
@@ -65,15 +66,13 @@ const SubscribePage = () => {
             </div>
           ))
         ) : (
-          <p>No subscribed channels found.</p>
+          <p>{t("No subscribed channels found.")}</p>
         )}
       </div>
 
       {/* Shorts Section */}
       <h2 className="text-2xl font-bold mb-6 border-b border-gray-300 pb-2 flex items-center gap-2">
-        <SiYoutubeshorts className="w-7 h-7 text-orange-600" />
-        Subscribed Shorts
-      </h2>
+        <SiYoutubeshorts className="w-7 h-7 text-orange-600" />{t("\n        Subscribed Shorts\n      ")}</h2>
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
         {subscribeShort?.length > 0 ? (
           subscribeShort.map((short) => (
@@ -89,15 +88,13 @@ const SubscribePage = () => {
             </div>
           ))
         ) : (
-          <p>No subscribed shorts found.</p>
+          <p>{t("No subscribed shorts found.")}</p>
         )}
       </div>
 
       {/* Videos Section */}
       <h2 className="text-2xl font-bold mb-6 pt-[50px] border-b border-gray-300 pb-2 flex items-center gap-2">
-        <img src={logo} className="w-7 h-7" alt="" />
-        Subscribed Videos
-      </h2>
+        <img src={logo} className="w-7 h-7" alt="" />{t("\n        Subscribed Videos\n      ")}</h2>
       <div className="flex flex-wrap gap-6 mb-12">
         {subscribeVideo?.length > 0 ? (
           subscribeVideo.map((video) => (
@@ -114,7 +111,7 @@ const SubscribePage = () => {
             />
           ))
         ) : (
-          <p>No subscribed videos found.</p>
+          <p>{t("No subscribed videos found.")}</p>
         )}
       </div>
     </div>

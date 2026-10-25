@@ -1,3 +1,5 @@
+import { t } from '../../utils/i18n.js';
+import { VideoThumbnail } from "../component/VideoCard";
 import React, { useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import { ClipLoader } from "react-spinners";
@@ -31,11 +33,11 @@ const CreatePlaylist = () => {
 
   const handleCreatePlaylist = async () => {
     if (!title) {
-      showCustomAlert("Playlist title is required!");
+      showCustomAlert(t("Playlist title is required!"));
       return;
     }
     if (!channelData?._id) {
-      showCustomAlert("Channel data is still loading. Please try again.");
+      showCustomAlert(t("Channel data is still loading. Please try again."));
       return;
     }
 
@@ -59,7 +61,7 @@ const CreatePlaylist = () => {
       };
       dispatch(setChannelData(updatedChannel));
 
-      showCustomAlert("Playlist created successfully");
+      showCustomAlert(t("Playlist created successfully"));
       navigate("/");
     } catch (error) {
       console.error(error);
@@ -75,8 +77,8 @@ const CreatePlaylist = () => {
         <div className="relative bg-[#212121] p-6 pt-14 rounded-xl w-full max-w-2xl shadow-lg space-y-6">
           <button
             type="button"
-            aria-label="Close playlist creation"
-            title="Close"
+            aria-label={t("Close playlist creation")}
+            title={t("Close")}
             onClick={() => navigate("/createpage")}
             disabled={loading}
             className="absolute right-3 top-3 rounded-full p-2 text-gray-300 hover:bg-[#343434] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:right-4 sm:top-4"
@@ -86,7 +88,7 @@ const CreatePlaylist = () => {
           {/* Playlist Title */}
           <input
             type="text"
-            placeholder="Playlist Title (required)"
+            placeholder={t("Playlist Title (required)")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -94,7 +96,7 @@ const CreatePlaylist = () => {
 
           {/* Playlist Description */}
           <textarea
-            placeholder="Description"
+            placeholder={t("Description")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -102,10 +104,10 @@ const CreatePlaylist = () => {
 
           {/* Video Selection */}
           <div>
-            <p className="mb-3 text-lg font-semibold">Select Videos</p>
+            <p className="mb-3 text-lg font-semibold">{t("Select Videos")}</p>
             
            {!videoData || videoData.length === 0 ? (
-              <p className="text-gray-400 text-sm">No channel videos available yet. You can still create an empty playlist.</p>
+              <p className="text-gray-400 text-sm">{t("No channel videos available yet. You can still create an empty playlist.")}</p>
             ) : (
               <div className="grid grid-cols-2 gap-4 max-h-72 overflow-y-auto">
                 {videoData?.map((video) => (
@@ -118,9 +120,9 @@ const CreatePlaylist = () => {
                         : "border-gray-700"
                     }`}
                   >
-                    <img
+                    <VideoThumbnail
                       src={video.thumbnail}
-                      alt={video.title}
+                      title={video.title}
                       className="w-full h-28 object-cover"
                     />
                     <p className="p-2 text-sm truncate">{video.title}</p>
@@ -136,7 +138,7 @@ const CreatePlaylist = () => {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-medium disabled:bg-gray-600 flex items-center justify-center"
           >
-            {loading ? <ClipLoader size={20} color="white" /> : "Create Playlist"}
+            {loading ? <ClipLoader size={20} color="white" /> : t("Create Playlist")}
           </button>
         </div>
       </main>

@@ -1,9 +1,11 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import CommunityCard from "../component/CommunityCard";
 import PlaylistCard from "../component/PlaylistCard";
+import NameAvatar from "../component/NameAvatar";
 import ShortsCard from "../component/ShortsCard";
 import VideoCard from "../component/VideoCard";
 import { serverUrl } from "../config";
@@ -29,9 +31,7 @@ export default function ChannelPage() {
 
   if (!channel) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-300">
-        Loading channel...
-      </div>
+      <div className="flex justify-center items-center h-screen text-gray-300">{t("\n        Loading channel...\n      ")}</div>
     );
   }
 
@@ -84,7 +84,7 @@ export default function ChannelPage() {
       <div className="relative">
         <img
           src={channel.bannerImage || "https://via.placeholder.com/1200x300"}
-          alt="Channel Banner"
+          alt={t("Channel Banner")}
           className="w-full h-60 object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -94,10 +94,11 @@ export default function ChannelPage() {
       <div className="relative flex items-center gap-6 p-6 rounded-xl bg-gradient-to-r from-gray-900 via-black to-gray-900 shadow-xl flex-wrap">
         {/* Avatar */}
         <div className="relative">
-          <img
+          <NameAvatar
             src={channel.avatar}
-            alt="Channel Logo"
-            className="rounded-full w-28 h-28 border-4 border-gray-800 shadow-lg hover:scale-105 hover:ring-4 hover:ring-red-600 transition-transform duration-300"
+            name={channel.name}
+            alt={t("Channel Logo")}
+            className="h-28 w-28 border-4 border-gray-800 text-4xl shadow-lg transition-transform duration-300 hover:scale-105 hover:ring-4 hover:ring-red-600"
           />
         </div>
 
@@ -109,13 +110,10 @@ export default function ChannelPage() {
           <p className="text-gray-400 mt-1">
             <span className="font-semibold text-white">
               {channel.subscribers?.length || 0}
-            </span>{" "}
-            subscribers ·{" "}
+            </span>{" "}{t("\n            subscribers ·")}{" "}
             <span className="font-semibold text-white">
               {channel.videos?.length || 0}
-            </span>{" "}
-            videos
-          </p>
+            </span>{" "}{t("\n            videos\n          ")}</p>
           <p className="text-gray-300 text-sm mt-2 line-clamp-2">
             {channel.category}
           </p>
@@ -131,7 +129,7 @@ export default function ChannelPage() {
             }`}
           disabled={loading}
         >
-          {loading ? <ClipLoader size={20} color="gray" /> : isSubscribed ? "Subscribed" : "Subscribe"}
+          {loading ? <ClipLoader size={20} color="gray" /> : isSubscribed ? t("Subscribed") : t("Subscribe")}
         </button>
       </div>
 
@@ -146,7 +144,7 @@ export default function ChannelPage() {
               : "text-gray-400 hover:text-white"
               }`}
           >
-            {tab}
+            {t(tab)}
             {activeTab === tab && (
               <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-red-600 rounded-full"></span>
             )}

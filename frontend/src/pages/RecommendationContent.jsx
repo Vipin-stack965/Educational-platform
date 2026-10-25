@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import VideoCard from "../component/VideoCard";
@@ -81,7 +82,7 @@ const RecommendationContent = () => {
       {/* 🔹 Shorts Section */}
       {allShorts.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-1"><SiYoutubeshorts className="w-6 h-6 text-red-600" />Shorts</h3>
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-1"><SiYoutubeshorts className="w-6 h-6 text-red-600" />{t("Shorts")}</h3>
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
             {allShorts.map((short) => (
               <div key={short._id} className="flex-shrink-0">

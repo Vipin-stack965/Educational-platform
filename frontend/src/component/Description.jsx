@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 
 const Description = ({ text }) => {
@@ -18,7 +19,7 @@ const Description = ({ text }) => {
           onClick={() => setExpanded(!expanded)}
           className="text-xs text-blue-400 mt-1 hover:underline"
         >
-          {expanded ? "Show less" : "Show more"}
+          {expanded ? t("Show less") : t("Show more")}
         </button>
       )}
     </div>

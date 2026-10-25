@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
@@ -41,7 +42,7 @@ const ManageShort = () => {
         setTags(res.data.short.tags?.join(", ") || "");
       } catch (error) {
         console.error(error);
-        showCustomAlert("Failed to load short", "error");
+        showCustomAlert(t("Failed to load short"), "error");
       } finally {
         setLoading(false);
       }
@@ -52,7 +53,7 @@ const ManageShort = () => {
   // handle update
   const handleUpdate = async () => {
     if (!title.trim()) {
-      showCustomAlert("Title is required", "error");
+      showCustomAlert(t("Title is required"), "error");
       return;
     }
     try {
@@ -86,11 +87,11 @@ const ManageShort = () => {
       };
       dispatch(setChannelData(updatedChannel));
 
-      showCustomAlert("Short updated successfully", "success");
+      showCustomAlert(t("Short updated successfully"), "success");
       
     } catch (error) {
       console.error(error);
-      showCustomAlert("Failed to update short", "error");
+      showCustomAlert(t("Failed to update short"), "error");
     } finally {
       setUpdating(false);
     }
@@ -98,7 +99,7 @@ const ManageShort = () => {
 
   // handle delete
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this short?")) return;
+    if (!window.confirm(t("Are you sure you want to delete this short?"))) return;
     try {
       await axios.delete(`${serverUrl}/api/content/delete-short/${shortId}`, {
         withCredentials: true,
@@ -115,11 +116,11 @@ const ManageShort = () => {
       };
       dispatch(setChannelData(updatedChannel));
 
-      showCustomAlert("Short deleted successfully", "success");
+      showCustomAlert(t("Short deleted successfully"), "success");
       navigate("/ptstudio/content");
     } catch (error) {
       console.error(error);
-      showCustomAlert("Failed to delete short", "error");
+      showCustomAlert(t("Failed to delete short"), "error");
     }
   };
 
@@ -133,9 +134,7 @@ const ManageShort = () => {
 
   if (!shortData) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        Short not found
-      </div>
+      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Short not found\n      ")}</div>
     );
   }
 
@@ -158,14 +157,14 @@ const ManageShort = () => {
           <div className="flex flex-col space-y-4">
             <input
               type="text"
-              placeholder="Title (required)"
+              placeholder={t("Title (required)")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
             
             <textarea
-              placeholder="Description"
+              placeholder={t("Description")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none h-28"
@@ -173,7 +172,7 @@ const ManageShort = () => {
             
             <input
               type="text"
-              placeholder="Tags (comma separated)"
+              placeholder={t("Tags (comma separated)")}
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -184,8 +183,7 @@ const ManageShort = () => {
                 onClick={handleDelete}
                 className="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-lg font-medium flex items-center justify-center gap-2"
               >
-                <FaTrash /> Delete
-              </button>
+                <FaTrash />{t(" Delete\n              ")}</button>
 
               <button
                 onClick={handleUpdate}
@@ -196,8 +194,7 @@ const ManageShort = () => {
                   <ClipLoader size={20} color="white" />
                 ) : (
                   <>
-                    <FaSave /> Update
-                  </>
+                    <FaSave />{t(" Update\n                  ")}</>
                 )}
               </button>
             </div>

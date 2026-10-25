@@ -22,6 +22,7 @@ const postSchema = new mongoose.Schema({
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true },
   content: { type: String, required: true },
   image: { type: String },
+  moderationCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "ModerationCase", unique: true, sparse: true },
 
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   comments: [commentSchema]

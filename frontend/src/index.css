@@ -27,6 +27,18 @@ body {
   background-color: #f9f9f9 !important;
 }
 
+[data-theme="light"] .youtube-sidebar {
+  background-color: #fff !important;
+}
+
+[data-theme="light"] .youtube-sidebar .sidebar-item-selected {
+  background-color: #e5e5e5 !important;
+}
+
+[data-theme="light"] .youtube-sidebar .sidebar-item:hover:not(.sidebar-item-selected) {
+  background-color: #f2f2f2 !important;
+}
+
 [data-theme="light"] [class*="bg-[#121212]"],
 [data-theme="light"] [class*="bg-[#181818]"],
 [data-theme="light"] [class*="bg-[#1f1f1f]"],

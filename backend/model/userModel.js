@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
   photoUrl: { type: String, default: "" },
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" },
   isGuest: { type: Boolean, default: false },
+  educationBlockStatus: { type: String, enum: ["active", "temporary", "permanent"], default: "active" },
+  educationBlockedUntil: { type: Date },
+  educationBlockReason: { type: String, default: "" },
   guestDailyUsageDate: { type: String, default: "" },
   guestDailyUsageCount: { type: Number, default: 0 },
   preferences: {

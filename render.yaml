@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: playtube-backend
+    name: edutube-backend
     runtime: node
     plan: free
     rootDir: backend
@@ -15,7 +15,7 @@ services:
       - key: COOKIE_SAME_SITE
         value: none
       - key: CORS_ORIGIN
-        value: https://playtube-frontend.onrender.com
+        value: https://educational-platform-frontend-4e7x.onrender.com,https://edutube-frontend.onrender.com
       - key: JWT_SECRET
         generateValue: true
       - key: MONGODB_URL
@@ -28,13 +28,17 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_MODERATION_MODEL
+        value: gemini-3.8-flash
+      - key: MODERATOR_EMAILS
+        sync: false
       - key: USER_EMAIL
         sync: false
       - key: USER_PASSWORD
         sync: false
 
   - type: web
-    name: playtube-frontend
+    name: edutube-frontend
     runtime: static
     plan: free
     rootDir: frontend
@@ -42,7 +46,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_SERVER_URL
-        value: https://playtube-backend.onrender.com
+        value: https://edutube-backend.onrender.com
       - key: VITE_FIREBASE_APIKEY
         sync: false
     routes:

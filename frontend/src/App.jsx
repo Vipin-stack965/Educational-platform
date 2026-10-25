@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react'
+
+import React, { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
-import Shorts from './pages/Shorts'
-import YoutubeSignin from './pages/YoutubeSignin'
+const Shorts = lazy(() => import('./pages/Shorts'))
+import EduTubeSignin from './pages/EduTubeSignin'
 import CustomAlert, { showCustomAlert } from './component/CustomAlert'
 import CreateAccount from './pages/CreateAccount'
 import useGetCurrentUser from './customHooks/UsegetCurrentUser'
@@ -27,6 +28,7 @@ import SubscribePage from './pages/SubscribePage'
 import UseGetSubscribedContent from './customHooks/UseGetSubscribedContent'
 import SavedPlaylistPage from './pages/SavedPlaylistPage'
 import SavedContentPage from './pages/SavedContentPage'
+import DownloadsPage from './pages/DownloadsPage'
 import LikedContentPage from './pages/LikedContentPage'
 import ScrollToTop from './component/ScrollToTop'
 import HistoryPage from './pages/HistoryPage'
@@ -43,26 +45,30 @@ import RevenuePage from './component/RevenuePage'
 import SettingsPage from './pages/SettingsPage'
 import HelpPage from './pages/HelpPage'
 import FeedbackPage from './pages/FeedbackPage'
+import ModerationQueuePage from './pages/ModerationQueuePage'
+import { setLanguage, t } from '../utils/i18n.js'
 
 const ProtectedRoute = ({ userData, isAuthLoading, children, accountOnly = false }) => {
   if (isAuthLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0f0f0f] text-white">
-        Loading your session...
+        {t('Loading your session...')}
       </div>
-    );
+    )
   }
 
   if (!userData) {
-    showCustomAlert("Unable to start your session. Please try again.");
-    return <Navigate to="/" replace />;
+    showCustomAlert(t('Unable to start your session. Please try again.'))
+    return <Navigate to="/" replace />
   }
+
   if (accountOnly && userData.isGuest) {
-    showCustomAlert("Sign in to send feedback.");
-    return <Navigate to="/signin" replace />;
+    showCustomAlert(t('Sign in to send feedback.'))
+    return <Navigate to="/signin" replace />
   }
-  return children;
-};
+
+  return children
+}
 
 function App() {
   useGetCurrentUser()
@@ -73,96 +79,109 @@ function App() {
   UseGetHistory()
   UseGetRecommendation()
 
+  useEffect(() => {
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .catch((error) => console.error('Unable to enable offline app support:', error))
+    }
+  }, [])
+
   const { userData, isAuthLoading } = useSelector(state => state.user)
-  const themePreference = userData?.preferences?.theme || "system"
-  const languagePreference = userData?.preferences?.language || "en"
+  const themePreference = userData?.preferences?.theme || 'system'
+  const languagePreference = userData?.preferences?.language || 'en'
+
+  setLanguage(languagePreference)
 
   useEffect(() => {
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+
     const applyPreferences = () => {
-      const theme = themePreference === "system"
-        ? (systemTheme.matches ? "dark" : "light")
+      const theme = themePreference === 'system'
+        ? (systemTheme.matches ? 'dark' : 'light')
         : themePreference
+
       document.documentElement.dataset.theme = theme
       document.documentElement.lang = languagePreference
     }
 
     applyPreferences()
-    if (themePreference === "system") {
-      systemTheme.addEventListener("change", applyPreferences)
+
+    if (themePreference === 'system') {
+      systemTheme.addEventListener('change', applyPreferences)
     }
-    return () => systemTheme.removeEventListener("change", applyPreferences)
+
+    return () => systemTheme.removeEventListener('change', applyPreferences)
   }, [themePreference, languagePreference])
 
   const protect = (children, accountOnly = false) => (
-    <ProtectedRoute userData={userData} isAuthLoading={isAuthLoading} accountOnly={accountOnly}>
+    <ProtectedRoute
+      userData={userData}
+      isAuthLoading={isAuthLoading}
+      accountOnly={accountOnly}
+    >
       {children}
     </ProtectedRoute>
   )
-  
 
- 
   function ChannelPageWrapper() {
-  const location = useLocation();
-  return <ChannelPage key={location.pathname} />;
-}
+    const location = useLocation()
+    return <ChannelPage key={location.pathname} />
+  }
 
   return (
     <>
       <CustomAlert />
-      <ScrollToTop/>
-      <Routes>
-        <Route path='/' element={<Home />}>
-          <Route path='/shorts' element={protect(<Shorts />)} />
-          <Route path='/viewchannel' element={protect(<ViewChannel />)} />
-          <Route path='/updatechannel' element={protect(<UpdateChannel />)} />
-          <Route path='/mobileprofile' element={<MobileProfile />} />
-          <Route path='/settings' element={protect(<SettingsPage />)} />
-          <Route path='/help' element={<HelpPage />} />
-          <Route path='/send-feedback' element={protect(<FeedbackPage />, true)} />
-        <Route path='/createpage' element={protect(<CreatePage />)} />
-          <Route path='/create-video' element={protect(<CreateVideo />)} />
-          <Route path='/create-post' element={protect(<CreatePost />)} />
-          <Route path='/create-short' element={protect(<CreateShorts />)} />
-          <Route path='/create-playlist' element={protect(<CreatePlaylist />)} />
-          <Route path='/watch-short/:shortId' element={protect(<WatchShortPage />)} />
-          <Route path='/channelpage/:channelId' element={protect(<ChannelPageWrapper />)} />
-          <Route path='/subscribepage' element={protect(<SubscribePage />)} />
-          <Route path='/saveplaylist' element={protect(<SavedPlaylistPage />)} />
-          <Route path='/savevideos' element={protect(<SavedContentPage />)} />
-          <Route path='/likedvideos' element={protect(<LikedContentPage />)} />
-          <Route path='/history' element={protect(<HistoryPage />)} />
+      <ScrollToTop />
 
-          
-          
-        </Route>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-[#0f0f0f] text-white">
+            Loading...
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<Home />}>
+            <Route path="/shorts" element={protect(<Shorts />)} />
+            <Route path="/viewchannel" element={protect(<ViewChannel />)} />
+            <Route path="/updatechannel" element={protect(<UpdateChannel />)} />
+            <Route path="/mobileprofile" element={<MobileProfile />} />
+            <Route path="/settings" element={protect(<SettingsPage />)} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/send-feedback" element={protect(<FeedbackPage />, true)} />
+            <Route path="/createpage" element={protect(<CreatePage />)} />
+            <Route path="/create-video" element={protect(<CreateVideo />)} />
+            <Route path="/create-post" element={protect(<CreatePost />)} />
+            <Route path="/create-short" element={protect(<CreateShorts />)} />
+            <Route path="/create-playlist" element={protect(<CreatePlaylist />)} />
+            <Route path="/watch-short/:shortId" element={protect(<WatchShortPage />)} />
+            <Route path="/channelpage/:channelId" element={protect(<ChannelPageWrapper />)} />
+            <Route path="/subscribepage" element={protect(<SubscribePage />)} />
+            <Route path="/saveplaylist" element={protect(<SavedPlaylistPage />)} />
+            <Route path="/savevideos" element={protect(<SavedContentPage />)} />
+            <Route path="/downloads" element={protect(<DownloadsPage />, true)} />
+            <Route path="/likedvideos" element={protect(<LikedContentPage />)} />
+            <Route path="/history" element={protect(<HistoryPage />)} />
+          </Route>
 
-        {/* Routes outside Home */}
-        <Route path='/signin' element={<YoutubeSignin />} />
-        <Route path='/signup' element={<CreateAccount />} />
-        <Route path='/forgetpassword' element={<ForgetPassword />}/>
-        <Route path='/createchannel' element={protect(<CreateChannelFlow />)} />
-        <Route path='/watch-video/:videoId' element={protect(<WatchVideoPage />)} />
-        
-       
-       
-       
-       
-     <Route path='/ptstudio' element={protect(<PTStudio />)} >
-   <Route path='/ptstudio/dashboard' element={protect(<Dashboard />)} />
-   <Route path='/ptstudio/content' element={protect(<ContentPage />)} />
-   <Route path='/ptstudio/analytics' element={protect(<AnalyticsPage />)} />
-   <Route path='/ptstudio/revenue' element={protect(<RevenuePage />)} />
-   <Route path='/ptstudio/managevideo/:videoId' element={protect(<ManageVideo />)} />
-   <Route path='/ptstudio/manageshort/:shortId' element={protect(<ManageShort />)} />
-   <Route path='/ptstudio/manageplaylist/:playlistId' element={protect(<ManagePlaylist />)} />
-    </Route>
-    
-   
+          <Route path="/signin" element={<EduTubeSignin />} />
+          <Route path="/signup" element={<Home accountOverlay={<CreateAccount />} />} />
+          <Route path="/forgetpassword" element={<ForgetPassword />} />
+          <Route path="/moderation" element={protect(<ModerationQueuePage />)} />
+          <Route path="/createchannel" element={protect(<CreateChannelFlow />)} />
+          <Route path="/watch-video/:videoId" element={protect(<WatchVideoPage />)} />
 
-        
-        
-      </Routes>
+          <Route path="/ptstudio" element={protect(<PTStudio />)}>
+            <Route path="/ptstudio/dashboard" element={protect(<Dashboard />)} />
+            <Route path="/ptstudio/content" element={protect(<ContentPage />)} />
+            <Route path="/ptstudio/analytics" element={protect(<AnalyticsPage />)} />
+            <Route path="/ptstudio/revenue" element={protect(<RevenuePage />)} />
+            <Route path="/ptstudio/managevideo/:videoId" element={protect(<ManageVideo />)} />
+            <Route path="/ptstudio/manageshort/:shortId" element={protect(<ManageShort />)} />
+            <Route path="/ptstudio/manageplaylist/:playlistId" element={protect(<ManagePlaylist />)} />
+          </Route>
+        </Routes>
+      </Suspense>
     </>
   )
 }

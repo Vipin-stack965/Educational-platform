@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import NameAvatar from "./NameAvatar";
 
 const ChannelCard = ({ id, name, avatar}) => {
   const navigate = useNavigate();
@@ -9,10 +10,11 @@ const ChannelCard = ({ id, name, avatar}) => {
       onClick={()=>navigate(`/channelpage/${id}`)}
     >
       {/* Avatar */}
-      <img
+      <NameAvatar
         src={avatar}
+        name={name}
         alt={name}
-        className="w-16 h-16 rounded-full object-cover"
+        className="h-16 w-16 text-xl"
       />
 
       {/* Info */}

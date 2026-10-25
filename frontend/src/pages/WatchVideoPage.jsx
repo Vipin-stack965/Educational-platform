@@ -1,4 +1,5 @@
-import React, { Children, useEffect, useRef, useState } from "react";
+import { t } from '../../utils/i18n.js';
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -11,14 +12,17 @@ import axios from "axios";
 import { ClipLoader } from "react-spinners";
 import Description from "../component/Description";
 import ShortsCard from "../component/ShortsCard";
+import { showCustomAlert } from "../component/CustomAlert";
+import { downloadOfflineVideo, getOfflineDownload, removeOfflineDownload } from "../utils/offlineStorage";
+import NameAvatar from "../component/NameAvatar";
 
-const IconButton = ({ icon: Icon, active, label, count, onClick }) => (
-  <button onClick={onClick} className="flex flex-col items-center">
+const IconButton = ({ icon, active, label, count, onClick, disabled = false }) => (
+  <button onClick={onClick} disabled={disabled} className="flex flex-col items-center disabled:cursor-wait disabled:opacity-70">
     <div
       className={`${active ? "bg-white" : "bg-[#00000065] border border-gray-700"
         } p-3 rounded-full hover:bg-gray-700 transition`}
     >
-      <Icon size={20} className={`${active ? "text-black" : "text-white"}`} />
+      {React.createElement(icon, { size: 20, className: active ? "text-black" : "text-white" })}
     </div>
     <span className="text-xs mt-1">{label}{count !== undefined && ` (${count})`}</span>
   </button>
@@ -27,7 +31,7 @@ const IconButton = ({ icon: Icon, active, label, count, onClick }) => (
 const WatchVideoPage = () => {
   const { videoId } = useParams();
   const navigate = useNavigate();
-  const { allVideoData, allShortData , recommendationData } = useSelector((state) => state.content);
+  const { allVideoData, recommendationData } = useSelector((state) => state.content);
   const { userData } = useSelector((state) => state.user);
    const allVideos = [
     ...(recommendationData?.recommendedVideos || []),
@@ -56,11 +60,32 @@ const WatchVideoPage = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false)
+  const [downloadLoading, setDownloadLoading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(null)
+  const [isOfflineDownloaded, setIsOfflineDownloaded] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(
     channel?.subscribers?.some(
       (sub) => sub._id?.toString() === userData?._id?.toString() || sub?.toString() === userData?._id?.toString()
     )
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsOfflineDownloaded(false);
+    if (!userData?._id || !videoId) return undefined;
+
+    getOfflineDownload(userData._id, videoId)
+      .then((record) => {
+        if (!cancelled) setIsOfflineDownloaded(Boolean(record));
+      })
+      .catch((storageError) => {
+        console.error("Unable to check whether this video is stored offline:", storageError);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userData?._id, videoId]);
 
 
   useEffect(() => {
@@ -82,7 +107,6 @@ const WatchVideoPage = () => {
       .catch(err => console.error(err));
 
   }, [videoId, allVideoData]);
-
 
   // Video Controls
   const togglePlay = () => {
@@ -155,6 +179,56 @@ const WatchVideoPage = () => {
       const res = await axios.put(`${serverUrl}/api/content/video/${videoId}/toggle-save`, {}, { withCredentials: true });
       setVideo(res.data);
     } catch (err) { console.error(err); }
+  };
+
+  const handleDownload = async () => {
+    if (!userData || userData.isGuest) {
+      showCustomAlert(t("Sign in to save videos to your account Downloads."));
+      navigate("/signin");
+      return;
+    }
+
+    setDownloadLoading(true);
+    setDownloadProgress(0);
+    let storedOnDevice = false;
+    try {
+      const existingDownload = await getOfflineDownload(userData._id, videoId);
+      if (existingDownload) {
+        showCustomAlert(t("This video is already downloaded on this device."));
+        return;
+      }
+      if (!navigator.onLine) {
+        throw new Error(t("Connect to the internet to download this video."));
+      }
+
+      await downloadOfflineVideo({
+        userId: userData._id,
+        video,
+        onProgress: setDownloadProgress,
+      });
+      storedOnDevice = true;
+      const res = await axios.put(
+        `${serverUrl}/api/content/video/${videoId}/download`,
+        {},
+        { withCredentials: true }
+      );
+      setVideo(res.data);
+      setIsOfflineDownloaded(true);
+      showCustomAlert(t("Video downloaded to this device and saved to your account Downloads."));
+    } catch (err) {
+      if (storedOnDevice) {
+        try {
+          await removeOfflineDownload(userData._id, videoId);
+        } catch (storageError) {
+          console.error("Unable to clean up an incomplete account download:", storageError);
+        }
+      }
+      console.error("Unable to download video for offline playback:", err);
+      showCustomAlert(err.response?.data?.message || err.message || t("Unable to download this video."));
+    } finally {
+      setDownloadLoading(false);
+      setDownloadProgress(null);
+    }
   };
 
   const handleSubscribe = async () => {
@@ -313,9 +387,9 @@ const WatchVideoPage = () => {
         {/* Video Info */}
         <h1 className="mt-4 text-lg sm:text-xl font-bold text-white flex gap-3">{video?.title} </h1>
 
-        <p className="text-sm text-gray-400">{video?.views} views</p>
+        <p className="text-sm text-gray-400">{video?.views}{t(" views")}</p>
         <div className="flex flex-wrap items-center justify-between">
-          <div className="flex items-center justify-start gap-4" ><img src={channel?.avatar} className="w-12 h-12 rounded-full border-2 border-gray-600" alt="" onClick={() => navigate(`/channelpage/${channel._id}`)} />
+          <div className="flex items-center justify-start gap-4" ><NameAvatar src={channel?.avatar} name={channel?.name} className="h-12 w-12 border-2 border-gray-600 text-sm" onClick={() => navigate(`/channelpage/${channel._id}`)} />
             <div>
               <h1 className="text-md font-bold" onClick={() => navigate(`/channelpage/${channel._id}`)}>{channel?.name}</h1>
               <h3 className="text-[13px]">{channel?.subscribers?.length}</h3>
@@ -326,36 +400,42 @@ const WatchVideoPage = () => {
               onClick={handleSubscribe}
               disabled={loading}
             >
-              {loading ? <ClipLoader size={20} color="gray" /> : isSubscribed ? "Subscribed" : "Subscribe"}
+              {loading ? <ClipLoader size={20} color="gray" /> : isSubscribed ? t("Subscribed") : t("Subscribe")}
             </button>
 
           </div>
           <div className="flex items-center gap-6 mt-3">
-            <IconButton icon={FaThumbsUp} active={video?.likes.includes(userData?._id)} label="Like" count={video?.likes.length} onClick={handleLike} />
-            <IconButton icon={FaThumbsDown} active={video?.dislikes.includes(userData?._id)} label="Dislike" count={video?.dislikes.length} onClick={handleDislike} />
-            <IconButton icon={FaDownload} label="Download" onClick={() => {
-              const link = document.createElement("a"); link.href = video?.videoUrl; link.download = `${video?.title}.mp4`; link.click();
-            }} />
-            <IconButton icon={FaBookmark} active={video?.saveBy.includes(userData?._id)} label="Save" onClick={handleSave} />
+            <IconButton icon={FaThumbsUp} active={video?.likes.includes(userData?._id)} label={t("Like")} count={video?.likes.length} onClick={handleLike} />
+            <IconButton icon={FaThumbsDown} active={video?.dislikes.includes(userData?._id)} label={t("Dislike")} count={video?.dislikes.length} onClick={handleDislike} />
+            <IconButton
+              icon={FaDownload}
+              active={isOfflineDownloaded}
+              label={downloadLoading
+                ? `${t("Downloading...")}${downloadProgress === null ? "" : ` ${downloadProgress}%`}`
+                : isOfflineDownloaded ? t("In Downloads") : t("Download")}
+              onClick={handleDownload}
+              disabled={downloadLoading}
+            />
+            <IconButton icon={FaBookmark} active={video?.saveBy?.some((id) => id.toString() === userData?._id?.toString())} label={t("Save")} onClick={handleSave} />
           </div>
         </div>
 
      <div className="mt-4 bg-[#1a1a1a] p-3 rounded-lg">
-  <h2 className="text-md font-semibold mb-2">Description</h2>
+  <h2 className="text-md font-semibold mb-2">{t("Description")}</h2>
   <Description text={video?.description} />
 </div>
         {/* Comments */}
         <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-3">Comments</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("Comments")}</h2>
           <div className="flex gap-2 mb-4">
             <input
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder={t("Add a comment...")}
               className="flex-1 border border-gray-700 bg-[#1a1a1a] text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-600"
             />
-            <button onClick={handleAddComment} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg">Post</button>
+            <button onClick={handleAddComment} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg">{t("Post")}</button>
           </div>
 
           <div className="space-y-3">
@@ -363,14 +443,14 @@ const WatchVideoPage = () => {
 
               <div key={comment?._id} className="p-3 bg-[#1a1a1a] rounded-lg shadow-sm text-sm">
                 <div className="flex items-center justify-start gap-1">
-                  <img src={comment?.author?.photoUrl} className="w-8 h-8 rounded-full" alt="" />
+                  <NameAvatar src={comment?.author?.photoUrl} name={comment?.author?.username} className="h-8 w-8 text-xs" />
                   <h1 className="text-[13px]">@{comment?.author?.username?.toLowerCase()}</h1>
                 </div>
                 <p className="font-medium px-[20px] py-[20px] ">{comment?.message}</p>
                 <div className="ml-4 mt-2 space-y-2">
                   {comment?.replies?.map((reply) => (
                     <div key={reply._id} className="p-2 bg-[#2a2a2a] rounded ">
-                      <div className="flex items-center justify-start gap-1"><img src={reply?.author?.photoUrl} alt="" className="w-8 h-8 rounded-full" />
+                      <div className="flex items-center justify-start gap-1"><NameAvatar src={reply?.author?.photoUrl} name={reply?.author?.username} className="h-8 w-8 text-xs" />
                         <h1 className="text-[13px]">@{comment?.author?.username.toLowerCase()}</h1></div>
                       <p className="px-[20px] py-[20px]">{reply?.message}</p>
 
@@ -387,8 +467,7 @@ const WatchVideoPage = () => {
       {/* Right - Shorts + Suggested */}
       <div className="w-full lg:w-[380px] px-4 py-4 border-t lg:border-t-0 lg:border-l border-gray-800 overflow-y-auto">
         <h2 className="flex items-center gap-2 font-bold text-lg mb-3">
-          <SiYoutubeshorts className="text-red-600" /> Shorts
-        </h2>
+          <SiYoutubeshorts className="text-red-600" />{t(" Shorts\n        ")}</h2>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-3">
   {suggestedShorts.map((short) => (
     <div key={short._id} >
@@ -403,7 +482,7 @@ const WatchVideoPage = () => {
     </div>
   ))}
 </div>
-        <h2 className="font-bold text-lg mt-4 mb-3">Up next</h2>
+        <h2 className="font-bold text-lg mt-4 mb-3">{t("Up next")}</h2>
         <div className="space-y-3">
           {suggestedVideos.map((v) => (
             <div key={v._id} onClick={() => navigate(`/watch-video/${v._id}`)} className="flex gap-2 sm:gap-3 cursor-pointer hover:bg-[#1a1a1a] p-2 rounded-lg transition">
@@ -411,7 +490,7 @@ const WatchVideoPage = () => {
               <div>
                 <p className="font-semibold line-clamp-2 text-sm sm:text-base text-white">{v.title}</p>
                 <p className="text-xs sm:text-sm text-gray-400">{v.channel?.name}</p>
-                <p className="text-xs sm:text-sm text-gray-400">{v.views} views</p>
+                <p className="text-xs sm:text-sm text-gray-400">{v.views}{t(" views")}</p>
               </div>
             </div>
           ))}
@@ -433,13 +512,13 @@ const ReplySection = ({ comment, handleAddReply }) => {
             type="text"
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Add a reply..."
+            placeholder={t("Add a reply...")}
             className="flex-1 border border-gray-700 bg-[#1a1a1a] text-white rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-red-600 text-sm"
           />
-          <button onClick={() => { handleAddReply(comment._id, replyText); setReplyText(""); setShowReplyInput(false); }} className="bg-red-600 hover:bg-red-700 text-white px-3 rounded-lg text-sm">Reply</button>
+          <button onClick={() => { handleAddReply(comment._id, replyText); setReplyText(""); setShowReplyInput(false); }} className="bg-red-600 hover:bg-red-700 text-white px-3 rounded-lg text-sm">{t("Reply")}</button>
         </div>
       )}
-      <button onClick={() => setShowReplyInput(!showReplyInput)} className="ml-4 text-xs text-gray-400 mt-1">Reply</button>
+      <button onClick={() => setShowReplyInput(!showReplyInput)} className="ml-4 text-xs text-gray-400 mt-1">{t("Reply")}</button>
     </div>
   );
 };

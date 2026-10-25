@@ -1,9 +1,10 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { SiYoutubeshorts } from "react-icons/si";
 import VideoCard from "../component/VideoCard";
 import ShortsCard from "../component/ShortsCard";
-import logo from "../assets/playtube1.png";
+import logo from "../assets/edutube-logo.svg";
 import { serverUrl } from "../config";
 // ✅ apna serverUrl import karna
 
@@ -65,16 +66,14 @@ setSavedVideos(videosRes.data || []);
   }, []);
 
   if (loading) {
-    return <p className="p-6">Loading saved content...</p>;
+    return <p className="p-6">{t("Loading saved content...")}</p>;
   }
 
   return (
     <div className="px-6 py-4 min-h-screen mt-[50px] lg:mt-[20px]">
       {/* Shorts Section */}
       <h2 className="text-2xl font-bold mb-6 pt-[50px] border-b border-gray-300 pb-2 flex items-center gap-2">
-        <SiYoutubeshorts className="w-7 h-7 text-orange-600" />
-        Saved Shorts
-      </h2>
+        <SiYoutubeshorts className="w-7 h-7 text-orange-600" />{t("\n        Saved Shorts\n      ")}</h2>
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
         {savedShorts.length > 0 ? (
           savedShorts.map((short) => (
@@ -90,15 +89,13 @@ setSavedVideos(videosRes.data || []);
             </div>
           ))
         ) : (
-          <p>No saved shorts found.</p>
+          <p>{t("No saved shorts found.")}</p>
         )}
       </div>
 
       {/* Videos Section */}
       <h2 className="text-2xl font-bold mb-6 pt-[50px] border-b border-gray-300 pb-2 flex items-center gap-2">
-        <img src={logo} className="w-7 h-7" alt="" />
-        Saved Videos
-      </h2>
+        <img src={logo} className="w-7 h-7" alt="" />{t("\n        Saved Videos\n      ")}</h2>
       <div className="flex flex-wrap gap-6 mb-12">
         {savedVideos.length > 0 ? (
           savedVideos.map((video) => (
@@ -115,7 +112,7 @@ setSavedVideos(videosRes.data || []);
             />
           ))
         ) : (
-          <p>No saved videos found.</p>
+          <p>{t("No saved videos found.")}</p>
         )}
       </div>
     </div>

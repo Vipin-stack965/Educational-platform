@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from "react";
 import { useSelector } from "react-redux";
 import {
@@ -28,9 +29,7 @@ function Dashboard() {
 
   if (!channelData) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        Loading channel data...
-      </div>
+      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Loading channel data...\n      ")}</div>
     );
   }
 
@@ -40,37 +39,34 @@ function Dashboard() {
       <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
         <img
           src={channelData.avatar}
-          alt="channel avatar"
+          alt={t("channel avatar")}
           className="w-16 h-16 rounded-full object-cover border border-gray-700"
         />
         <div className="text-center sm:text-left">
           <h2 className="text-lg sm:text-xl font-bold">{channelData.name}</h2>
           <p className="text-gray-400 text-sm">
-            {channelData.subscribers?.length || 0} Total subscribers
-          </p>
+            {channelData.subscribers?.length || 0}{t(" Total subscribers\n          ")}</p>
         </div>
       </div>
 
       {/* -------- Channel Analytics -------- */}
       <div>
-        <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">
-          Channel Analytics
-        </h3>
+        <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">{t("\n          Channel Analytics\n        ")}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <AnalyticsCard
             
-            label="Views"
+            label={t("Views")}
             value={totalViews || "0"}
             onClick={()=>navigate("/ptstudio/analytics")}
           />
           <AnalyticsCard
             
-            label="Subscribers"
+            label={t("Subscribers")}
             value={`+${channelData.subscribers?.length || 0}`}
           />
           <AnalyticsCard
            
-            label="Estimated revenue"
+            label={t("Estimated revenue")}
             value={`+${contentRevenue || 0}`}
             onClick={()=>navigate("/ptstudio/revenue")}
           />
@@ -82,9 +78,7 @@ function Dashboard() {
   {/* Videos */}
   <div>
     {channelData?.videos?.length > 0 && (
-      <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">
-        Latest Videos
-      </h3>
+      <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">{t("\n        Latest Videos\n      ")}</h3>
     )}
     <div className="space-y-4">
       {(channelData.videos || [])
@@ -100,9 +94,7 @@ function Dashboard() {
   {/* Shorts */}
   <div>
     {channelData?.shorts?.length > 0 && (
-      <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">
-        Latest Shorts
-      </h3>
+      <h3 className="pl-1 text-start sm:text-lg font-semibold mb-3">{t("\n        Latest Shorts\n      ")}</h3>
     )}
     <div className="space-y-4">
       {(channelData.shorts || [])
@@ -139,7 +131,7 @@ function ContentCard({ content, isShort = false , onClick  }) {
       {/* Thumbnail */}
       <img
         src={content.thumbnail}
-        alt="thumbnail"
+        alt={t("thumbnail")}
         className={`${
           isShort ? "w-full sm:w-28 h-48 sm:h-40" : "w-full sm:w-40 h-48 sm:h-24"
         } rounded-lg object-cover`}
@@ -150,8 +142,7 @@ function ContentCard({ content, isShort = false , onClick  }) {
         <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="font-semibold text-sm sm:text-base line-clamp-2">
           {content.title}
         </h4>
-        <p className="text-xs text-gray-400 mt-1">
-          Published {new Date(content.createdAt).toLocaleDateString()}
+        <p className="text-xs text-gray-400 mt-1">{t("\n          Published ")}{new Date(content.createdAt).toLocaleDateString()}
         </p>
         </div>
 
@@ -190,8 +181,7 @@ function ContentCard1({ content , onClick }) {
         <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="font-semibold text-sm sm:text-base line-clamp-2">
           {content.title}
         </h4>
-        <p className="text-xs text-gray-400 mt-1">
-          Published {new Date(content.createdAt).toLocaleDateString()}
+        <p className="text-xs text-gray-400 mt-1">{t("\n          Published ")}{new Date(content.createdAt).toLocaleDateString()}
         </p>
         </div>
 

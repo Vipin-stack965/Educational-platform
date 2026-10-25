@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 import { FaPlay, FaListUl, FaTimes, FaBookmark } from "react-icons/fa";
 import axios from "axios";
@@ -19,7 +20,7 @@ export default function PlaylistCard({ id, title, videos, savedBy }) {
 
   // ✅ Save/Unsave handler
   const handleToggleSave = async () => {
-    if (!userData?._id) return alert("Please login to save playlists");
+    if (!userData?._id) return alert(t("Please login to save playlists"));
     setLoading(true);
     try {
       const res = await axios.post(
@@ -56,7 +57,7 @@ export default function PlaylistCard({ id, title, videos, savedBy }) {
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-3">
           <h3 className="font-semibold text-white truncate">{title}</h3>
-          <p className="text-sm text-gray-300">{videos.length} videos</p>
+          <p className="text-sm text-gray-300">{videos.length}{t(" videos")}</p>
         </div>
 
         {/* ✅ Save Icon (top-right) */}
@@ -98,7 +99,7 @@ export default function PlaylistCard({ id, title, videos, savedBy }) {
 
             {/* Header */}
             <h2 className="text-2xl font-extrabold mb-3 text-white flex items-center gap-2">
-              {title} <span className="text-gray-400 font-normal">– Videos</span>
+              {title} <span className="text-gray-400 font-normal">{t("– Videos")}</span>
             </h2>
             <div className="h-[2px]  bg-red-600 mb-6 rounded-full"></div>
 

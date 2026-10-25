@@ -1,3 +1,5 @@
+import { t } from '../../utils/i18n.js';
+import { VideoThumbnail } from "../component/VideoCard";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -34,7 +36,7 @@ const ManagePlaylist = () => {
         setSelectedVideos(res.data.playlist.videos.map((v) => v._id));
       } catch (error) {
         console.error(error);
-        showCustomAlert("Failed to load playlist");
+        showCustomAlert(t("Failed to load playlist"));
       }
     };
     fetchPlaylist();
@@ -53,7 +55,7 @@ const ManagePlaylist = () => {
   // Update Playlist
 const handleUpdate = async () => {
   if (!title) {
-    showCustomAlert("Playlist title is required!");
+    showCustomAlert(t("Playlist title is required!"));
     return;
   }
 
@@ -83,7 +85,7 @@ const handleUpdate = async () => {
     );
     dispatch(setChannelData({ ...channelData, playlists: updatedPlaylists }));
 
-    showCustomAlert("Playlist updated successfully");
+    showCustomAlert(t("Playlist updated successfully"));
     
   } catch (error) {
     console.error(error);
@@ -94,7 +96,7 @@ const handleUpdate = async () => {
 
   // Delete Playlist
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this playlist?")) return;
+    if (!window.confirm(t("Are you sure you want to delete this playlist?"))) return;
 
     setLoading(true);
     try {
@@ -109,7 +111,7 @@ const handleUpdate = async () => {
       );
       dispatch(setChannelData({ ...channelData, playlists: updatedPlaylists }));
 
-      showCustomAlert("Playlist deleted successfully");
+      showCustomAlert(t("Playlist deleted successfully"));
       navigate("/");
     } catch (error) {
       console.error(error);
@@ -120,9 +122,7 @@ const handleUpdate = async () => {
 
   if (!playlist) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-300">
-        Loading playlist...
-      </div>
+      <div className="flex justify-center items-center h-screen text-gray-300">{t("\n        Loading playlist...\n      ")}</div>
     );
   }
 
@@ -133,7 +133,7 @@ const handleUpdate = async () => {
           {/* Title */}
           <input
             type="text"
-            placeholder="Playlist Title"
+            placeholder={t("Playlist Title")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -141,7 +141,7 @@ const handleUpdate = async () => {
 
           {/* Description */}
           <textarea
-            placeholder="Description"
+            placeholder={t("Description")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -149,9 +149,9 @@ const handleUpdate = async () => {
 
           {/* Video Selection */}
           <div>
-            <p className="mb-3 text-lg font-semibold ">Select Videos</p>
+            <p className="mb-3 text-lg font-semibold ">{t("Select Videos")}</p>
             {videoData?.length === 0 ? (
-              <p className="text-gray-400 text-sm">No videos found for this channel</p>
+              <p className="text-gray-400 text-sm">{t("No videos found for this channel")}</p>
             ) : (
               
               <div className="grid grid-cols-2 gap-4 max-h-72 overflow-y-auto ">
@@ -165,9 +165,9 @@ const handleUpdate = async () => {
                         : "border-gray-700"
                     }`}
                   >
-                    <img
+                    <VideoThumbnail
                       src={video.thumbnail}
-                      alt={video.title}
+                      title={video.title}
                       className="w-full h-28 object-cover"
                     />
                     <p className="p-2 text-sm truncate">{video.title}</p>
@@ -184,15 +184,13 @@ const handleUpdate = async () => {
               disabled={loading}
               className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-medium disabled:bg-gray-600 flex items-center justify-center"
             >
-              {loading ? <ClipLoader size={20} color="white" /> : "Update Playlist"}
+              {loading ? <ClipLoader size={20} color="white" /> : t("Update Playlist")}
             </button>
             <button
               onClick={handleDelete}
               disabled={loading}
               className="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-lg font-medium disabled:bg-gray-600 flex items-center justify-center"
-            >
-              Delete Playlist
-            </button>
+            >{t("\n              Delete Playlist\n            ")}</button>
           </div>
         </div>
       </main>

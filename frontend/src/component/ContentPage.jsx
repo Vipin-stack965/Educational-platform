@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FaEdit } from "react-icons/fa";
@@ -17,16 +18,14 @@ function ContentPage() {
 
   if (!channelData) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-300">
-        Loading channel content...
-      </div>
+      <div className="flex justify-center items-center h-screen text-gray-300">{t("\n        Loading channel content...\n      ")}</div>
     );
   }
 
 
 
 const handleDeletePost = async (postId) => {
-  if (!window.confirm("Are you sure you want to delete this post?")) return;
+  if (!window.confirm(t("Are you sure you want to delete this post?"))) return;
 
   try {
     await axios.delete(`${serverUrl}/api/content/delete-post/${postId}`, {
@@ -39,7 +38,7 @@ const handleDeletePost = async (postId) => {
     );
     dispatch(setChannelData({ ...channelData, communityPosts: updatedPosts }));
 
-    showCustomAlert("Post deleted successfully");
+    showCustomAlert(t("Post deleted successfully"));
   } catch (error) {
     console.error(error);
     showCustomAlert(error.response?.data?.message || "Failed to delete post");
@@ -61,7 +60,7 @@ const handleDeletePost = async (postId) => {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {tab}
+            {t(tab)}
           </button>
         ))}
       </div>
@@ -76,10 +75,10 @@ const handleDeletePost = async (postId) => {
               <table className="min-w-full border border-gray-700 rounded-lg">
                 <thead className="bg-gray-800 text-sm">
                   <tr>
-                    <th className="p-3 text-left">Thumbnail</th>
-                    <th className="p-3 text-left">Title</th>
-                    <th className="p-3 text-left">Views</th>
-                    <th className="p-3 text-left">Edit</th>
+                    <th className="p-3 text-left">{t("Thumbnail")}</th>
+                    <th className="p-3 text-left">{t("Title")}</th>
+                    <th className="p-3 text-left">{t("Views")}</th>
+                    <th className="p-3 text-left">{t("Edit")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -127,7 +126,7 @@ const handleDeletePost = async (postId) => {
                     <h3 className="text-base font-semibold ">{v.title}</h3>
                   </div>
                   <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-between text-sm text-gray-400">
-                    <span>{v.views} views</span>
+                    <span>{v.views}{t(" views")}</span>
                     <FaEdit
                       className="cursor-pointer hover:text-blue-400"
                       onClick={() =>
@@ -149,10 +148,10 @@ const handleDeletePost = async (postId) => {
               <table className="min-w-full border border-gray-700 rounded-lg">
                 <thead className="bg-gray-800 text-sm">
                   <tr>
-                    <th className="p-3 text-left">Preview</th>
-                    <th className="p-3 text-left">Title</th>
-                    <th className="p-3 text-left">Views</th>
-                    <th className="p-3 text-left">Edit</th>
+                    <th className="p-3 text-left">{t("Preview")}</th>
+                    <th className="p-3 text-left">{t("Title")}</th>
+                    <th className="p-3 text-left">{t("Views")}</th>
+                    <th className="p-3 text-left">{t("Edit")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -199,7 +198,7 @@ const handleDeletePost = async (postId) => {
                   <div className="p-4 flex justify-between items-center">
                     <div>
                       <h3 className="text-sm font-semibold">{s.title}</h3>
-                      <p className="text-xs text-gray-400">{s.views} views</p>
+                      <p className="text-xs text-gray-400">{s.views}{t(" views")}</p>
                     </div>
                     <FaEdit className="text-gray-400 hover:text-blue-400 cursor-pointer" onClick={() =>
                             navigate(`/ptstudio/manageshort/${s._id}`)
@@ -219,10 +218,10 @@ const handleDeletePost = async (postId) => {
               <table className="min-w-full border border-gray-700 rounded-lg">
                 <thead className="bg-gray-800 text-sm">
                   <tr>
-                    <th className="p-3 text-left">Preview</th>
-                    <th className="p-3 text-left">Title</th>
-                    <th className="p-3 text-left">Total Videos</th>
-                    <th className="p-3 text-left">Edit</th>
+                    <th className="p-3 text-left">{t("Preview")}</th>
+                    <th className="p-3 text-left">{t("Title")}</th>
+                    <th className="p-3 text-left">{t("Total Videos")}</th>
+                    <th className="p-3 text-left">{t("Edit")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,8 +266,7 @@ const handleDeletePost = async (postId) => {
                     <div>
                       <h3 className="text-sm font-semibold">{p.title}</h3>
                       <p className="text-xs text-gray-400">
-                        {p.videos?.length || 0} videos
-                      </p>
+                        {p.videos?.length || 0}{t(" videos\n                      ")}</p>
                     </div>
                     <FaEdit className="text-gray-400 hover:text-blue-400 cursor-pointer" onClick={() =>
                             navigate(`/ptstudio/manageplaylist/${p._id}`)
@@ -288,10 +286,10 @@ const handleDeletePost = async (postId) => {
               <table className="min-w-full border border-gray-700 rounded-lg">
                 <thead className="bg-gray-800 text-sm">
                   <tr>
-                    <th className="p-3 text-left">Image</th>
-                    <th className="p-3 text-left">Post</th>
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Delete</th>
+                    <th className="p-3 text-left">{t("Image")}</th>
+                    <th className="p-3 text-left">{t("Post")}</th>
+                    <th className="p-3 text-left">{t("Date")}</th>
+                    <th className="p-3 text-left">{t("Delete")}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -1,1 +1,2 @@
-export const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:8000"
+const configuredServerUrl = import.meta.env.VITE_SERVER_URL?.trim()
+export const serverUrl = (configuredServerUrl || (import.meta.env.DEV ? "" : window.location.origin)).replace(/\/+$/, "")

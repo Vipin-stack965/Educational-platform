@@ -1,7 +1,8 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import { IoIosArrowForward } from "react-icons/io";
-import logo from "../assets/youtube.png"; // PlayTube logo
+import logo from "../assets/edutube-logo.svg";
 import {  useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { showCustomAlert } from "../component/CustomAlert";
@@ -17,7 +18,7 @@ const CreateChannelFlow = () => {
   const [avatar, setAvatar] = useState(null);
   const [banner, setBanner] = useState(null);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState("General");
   const {userData}  = useSelector(state=>state.user)
   const [loading,setLoading] = useState(false)
   const navigate = useNavigate()
@@ -28,8 +29,13 @@ const CreateChannelFlow = () => {
   const prevStep = () => setStep((prev) => prev - 1);
 
   const handleCreateChannel = async () => {
+    if (!channelName.trim()) {
+      showCustomAlert(t("Please enter a channel name."));
+      setStep(1);
+      return;
+    }
     const formData = new FormData()
-    formData.append("name",channelName);
+    formData.append("name",channelName.trim());
     formData.append("description",description);
     formData.append("category",category);
     if (avatar) formData.append("avatar", avatar);
@@ -38,7 +44,7 @@ const CreateChannelFlow = () => {
     try {
       const result = await axios.post(serverUrl + "/api/user/create-channel" ,formData , {withCredentials:true})
       console.log(result)
-      showCustomAlert("Channel Created")
+      showCustomAlert(result.data.warning || "Channel Created")
       dispatch(setChannelData(result.data))
       dispatch(setUserData({ ...userData, username: result.data.name, photoUrl: result.data.avatar || userData?.photoUrl, channel: result.data }))
       navigate("/")
@@ -57,8 +63,8 @@ const CreateChannelFlow = () => {
       {/* HEADER */}
       <header className="flex justify-between items-center px-6 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <img src={logo} alt="PlayTube" className="w-8 h-8" />
-          <span className="text-xl font-bold">PlayTube</span>
+          <img src={logo} alt={t("EduTube")} className="w-8 h-8" />
+          <span className="text-xl font-bold">{t("EduTube")}</span>
         </div>
         <div className="flex items-center gap-3">
           {!userData?.photoUrl ?
@@ -73,10 +79,8 @@ const CreateChannelFlow = () => {
           {/* Step 1 */}
           {step === 1 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">How you’ll appear</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Choose a profile picture, channel name.
-              </p>
+              <h2 className="text-2xl font-semibold mb-4">{t("How you’ll appear")}</h2>
+              <p className="text-sm text-gray-400 mb-6">{t("\n                Choose a profile picture, channel name.\n              ")}</p>
 
               <div className="mb-6">
                 <ChannelImagePicker type="avatar" file={avatar} onChange={setAvatar} />
@@ -85,7 +89,7 @@ const CreateChannelFlow = () => {
               {/* Channel Name */}
               <input
                 type="text"
-                placeholder="Channel name"
+                placeholder={t("Channel name")}
                 className="w-full p-3 mb-4 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
@@ -97,17 +101,16 @@ const CreateChannelFlow = () => {
                 onClick={nextStep}
                 disabled={!channelName}
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 transition py-3 rounded-lg font-medium disabled:bg-gray-600"
-              >
-                Continue <IoIosArrowForward size={20} />
+              >{t("\n                Continue ")}<IoIosArrowForward size={20} />
               </button>
-              <span onClick={()=>navigate("/")} className=" w-full flex items-center justify-center text-sm text-blue-400 cursor-pointer hover:underline  mt-2">Back to Home Page</span>
+              <span onClick={()=>navigate("/")} className=" w-full flex items-center justify-center text-sm text-blue-400 cursor-pointer hover:underline  mt-2">{t("Back to Home Page")}</span>
             </>
           )}
 
           {/* Step 2 */}
           {step === 2 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Your Channel</h2>
+              <h2 className="text-2xl font-semibold mb-4">{t("Your Channel")}</h2>
               <div className="flex flex-col items-center mb-6">
                 <ChannelImagePicker type="avatar" file={avatar} onChange={setAvatar} />
                 <h3 className="mt-3 text-lg font-semibold">{channelName}</h3>
@@ -118,8 +121,7 @@ const CreateChannelFlow = () => {
                 <button
                   onClick={nextStep}
                   className="flex w-full items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg"
-                >
-                Continue and Create Channel <IoIosArrowForward size={20} />
+                >{t("\n                Continue and Create Channel ")}<IoIosArrowForward size={20} />
                 </button>
                 
               </div>
@@ -127,16 +129,14 @@ const CreateChannelFlow = () => {
               <button
                 onClick={prevStep}
                 className="mt-4 w-full flex items-center justify-center text-blue-400 hover:underline text-sm"
-              >
-                Back
-              </button>
+              >{t("\n                Back\n              ")}</button>
             </>
           )}
 
           {/* Step 3 */}
           {step === 3 && (
             <>
-              <h2 className="text-2xl font-semibold mb-4">Create Channel</h2>
+              <h2 className="text-2xl font-semibold mb-4">{t("Create Channel")}</h2>
 
               {/* Banner Upload */}
               <div className="mb-4">
@@ -145,7 +145,7 @@ const CreateChannelFlow = () => {
 
               {/* Description */}
               <textarea
-                placeholder="Channel description"
+                placeholder={t("Channel description")}
                 className="w-full p-3 mb-4 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -155,7 +155,7 @@ const CreateChannelFlow = () => {
               <input
                 className="w-full p-3 mb-6 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={category}
-                placeholder="Category"
+                placeholder={t("Category")}
                 onChange={(e) => setCategory(e.target.value)}
               />
                 
@@ -164,15 +164,13 @@ const CreateChannelFlow = () => {
                 <button
                   onClick={prevStep}
                   className="bg-gray-700 hover:bg-gray-600 py-3 px-5 rounded-lg"
-                >
-                  Back
-                </button>
+                >{t("\n                  Back\n                ")}</button>
                 <button
                   onClick={handleCreateChannel}
                   disabled={loading}
                   className="bg-blue-600 hover:bg-blue-700 py-3 px-5 rounded-lg"
                 >
-                {loading ? <ClipLoader size={20} color="white"/>:"Save"}
+                {loading ? <ClipLoader size={20} color="white"/>:t("Save")}
                 </button>
               </div>
             </>

@@ -17,8 +17,34 @@ const isAuth = async (req,res,next) => {
             if (isGuest && (!verifyToken.isGuest || !await User.exists({ _id: verifyToken.userId, isGuest: true }))) {
                 continue
             }
+            const account = await User.findById(verifyToken.userId)
+                .select("educationBlockStatus educationBlockedUntil")
+                .lean()
+            if (!account) {
+                return res.status(401).json({ message: "Account not found. Please sign in again." })
+            }
+            if (account.educationBlockStatus === "permanent") {
+                return res.status(403).json({ message: "This account is permanently blocked after repeated educational-content policy violations." })
+            }
+            if (
+                account.educationBlockStatus === "temporary" &&
+                account.educationBlockedUntil &&
+                new Date(account.educationBlockedUntil) > new Date()
+            ) {
+                return res.status(403).json({
+                    message: "This account is temporarily blocked for 3 hours after an educational-content policy violation.",
+                    blockedUntil: account.educationBlockedUntil,
+                })
+            }
+            if (account.educationBlockStatus === "temporary") {
+                await User.updateOne(
+                    { _id: verifyToken.userId, educationBlockStatus: "temporary" },
+                    { $set: { educationBlockStatus: "active", educationBlockedUntil: null, educationBlockReason: "" } }
+                )
+            }
             req.userId = verifyToken.userId
             req.isGuest = isGuest
+            req.isAgentReview = isGuest && Boolean(verifyToken.isAgentReview)
             return next()
         }
 

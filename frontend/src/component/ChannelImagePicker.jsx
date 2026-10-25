@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useId, useRef, useState } from "react";
 import { FaImage, FaUserCircle } from "react-icons/fa";
 import { showCustomAlert } from "./CustomAlert";
@@ -39,11 +40,11 @@ const ChannelImagePicker = ({ type, file, currentImage, onChange }) => {
     if (!selectedFile) return;
 
     if (!selectedFile.type.startsWith("image/")) {
-      showCustomAlert("Please choose an image file.");
+      showCustomAlert(t("Please choose an image file."));
       return;
     }
     if (selectedFile.size > settings.maxSize) {
-      showCustomAlert(`${settings.label} must be smaller than ${settings.maxSize / (1024 * 1024)} MB.`);
+      showCustomAlert(`${t(settings.label)} ${t("must be smaller than")} ${settings.maxSize / (1024 * 1024)} MB.`);
       return;
     }
     onChange(selectedFile);
@@ -61,13 +62,13 @@ const ChannelImagePicker = ({ type, file, currentImage, onChange }) => {
         {imageSource ? (
           <img
             src={imageSource}
-            alt={`${settings.label} preview`}
+            alt={`${t(settings.label)} ${t("preview")}`}
             className="h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400">
             {isAvatar ? <FaUserCircle size={48} /> : <FaImage size={32} />}
-            <span className="text-sm">{settings.label} preview</span>
+            <span className="text-sm">{t(settings.label)}{t(" preview")}</span>
           </div>
         )}
         {!isAvatar && (
@@ -81,9 +82,9 @@ const ChannelImagePicker = ({ type, file, currentImage, onChange }) => {
             type="button"
             onClick={() => inputRef.current?.click()}
             className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/75 px-4 py-2 text-sm text-white transition hover:bg-black"
-            aria-label={`Upload ${settings.label.toLowerCase()}`}
+            aria-label={`${t("Upload")} ${t(settings.label.toLowerCase())}`}
           >
-            <FaImage /> {imageSource ? "Change banner" : "Upload banner"}
+            <FaImage /> {imageSource ? t("Change banner") : t("Upload banner")}
           </button>
         )}
       </div>
@@ -95,12 +96,12 @@ const ChannelImagePicker = ({ type, file, currentImage, onChange }) => {
             onClick={() => inputRef.current?.click()}
             className="rounded-full bg-[#272727] px-4 py-2 text-sm font-medium hover:bg-[#3f3f3f]"
           >
-            {imageSource ? "Change picture" : "Upload picture"}
+            {imageSource ? t("Change picture") : t("Upload picture")}
           </button>
         </div>
       )}
 
-      <p className={`mt-2 text-xs text-gray-400 ${isAvatar ? "text-center" : ""}`}>{settings.guidance}</p>
+      <p className={`mt-2 text-xs text-gray-400 ${isAvatar ? "text-center" : ""}`}>{t(settings.guidance)}</p>
       {file && <p className="mt-1 truncate text-xs text-gray-300">{file.name}</p>}
 
       <input

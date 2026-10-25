@@ -1,16 +1,22 @@
 import express from "express"
 import isAuth from "../middleware/isAuth.js";
 import upload from "../middleware/multer.js";
-import { addComment, addReply, addView, createVideo, deleteVideo, fetchVideo, getAllVideos, getChannelVideos, getLikedVideos, getSavedVideos, toggleDislikeVideo, toggleLikeVideo, toggleSaveVideo, updateVideo } from "../controller/videoController.js";
-import {  addCommentforShort, addReplyforShort, addViewforShort, createShort, deleteShort, fetchShort, getAllShorts, getLikedShorts, getSavedShorts, toggleDislikeShort, toggleLikeShort, toggleSaveShort, updateShort } from "../controller/shortController.js";
+import { addComment, addReply, addView, addVideoToDownloads, createVideo, deleteVideo, fetchVideo, getAllVideos, getChannelVideos, getDownloadedVideos, getLikedVideos, getSavedVideos, removeVideoFromDownloads, toggleDislikeVideo, toggleLikeVideo, toggleSaveVideo, updateVideo } from "../controller/videoController.js";
+import {  addCommentforShort, addReplyforShort, addViewforShort, addShortToDownloads, createShort, deleteShort, fetchShort, getAllShorts, getDownloadedShorts, getLikedShorts, getSavedShorts, removeShortFromDownloads, toggleDislikeShort, toggleLikeShort, toggleSaveShort, updateShort } from "../controller/shortController.js";
 import { addCommentInPost, addReplyInPost, createPost, deletePost, getAllPosts, toggleLikePost } from "../controller/postController.js";
 import { createPlaylist, deletePlaylist, fetchPlaylist, getSavedPlaylists, toggleSavePlaylist, updatePlaylist } from "../controller/playlistController.js";
 import { filterCategoryWithAi, searchWithAi } from "../controller/aiController.js";
 import guestPublishLimit from "../middleware/guestPublishLimit.js"
+import requireAccount from "../middleware/requireAccount.js"
+import requireModerator from "../middleware/requireModerator.js"
+import { getModerationQueue, reviewModerationCase } from "../controller/moderationController.js"
 
 
 
 const contentRouter = express.Router()
+
+contentRouter.get("/moderation/cases", isAuth, requireModerator, getModerationQueue)
+contentRouter.post("/moderation/cases/:caseId/review", isAuth, requireModerator, reviewModerationCase)
   
 // for videoController
 contentRouter.post("/upload-video",isAuth,guestPublishLimit,upload.fields([
@@ -23,6 +29,9 @@ contentRouter.post("/get-videos",isAuth,getChannelVideos);
 contentRouter.get("/allvideos", getAllVideos)
 
 contentRouter.get("/savevideos",isAuth, getSavedVideos)
+
+contentRouter.get("/downloads",isAuth,requireAccount,getDownloadedVideos)
+contentRouter.get("/downloads/shorts",isAuth,requireAccount,getDownloadedShorts)
 
 contentRouter.get("/likedvideos",isAuth, getLikedVideos)
 
@@ -43,6 +52,12 @@ contentRouter.put("/video/:videoId/toggle-dislike", isAuth, toggleDislikeVideo);
 
 // 💾 Save / Unsave video
 contentRouter.put("/video/:videoId/toggle-save", isAuth, toggleSaveVideo);
+
+contentRouter.put("/video/:videoId/download", isAuth, requireAccount, addVideoToDownloads);
+
+contentRouter.delete("/video/:videoId/download", isAuth, requireAccount, removeVideoFromDownloads);
+contentRouter.put("/short/:shortId/download", isAuth, requireAccount, addShortToDownloads);
+contentRouter.delete("/short/:shortId/download", isAuth, requireAccount, removeShortFromDownloads);
 
 // 💬 Add comment
 contentRouter.post("/video/:videoId/comment", isAuth, addComment);

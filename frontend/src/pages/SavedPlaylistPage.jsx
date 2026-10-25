@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { serverUrl } from "../config"; 
@@ -29,23 +30,19 @@ export default function SavedPlaylistPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[70vh] text-gray-400 text-xl">
-        Loading saved playlists...
-      </div>
+      <div className="flex justify-center items-center h-[70vh] text-gray-400 text-xl">{t("\n        Loading saved playlists...\n      ")}</div>
     );
   }
 
   if (!playlists || playlists.length === 0) {
     return (
-      <div className="flex justify-center items-center h-[70vh] text-gray-400 text-xl">
-        No saved playlists found
-      </div>
+      <div className="flex justify-center items-center h-[70vh] text-gray-400 text-xl">{t("\n        No saved playlists found\n      ")}</div>
     );
   }
 
   return (
     <div className="p-6 min-h-screen bg-black text-white mt-[40px] lg:mt-[20px]">
-      <h1 className="text-3xl font-bold mb-6">Your Saved Playlists</h1>
+      <h1 className="text-3xl font-bold mb-6">{t("Your Saved Playlists")}</h1>
       <div className="flex flex-wrap gap-6">
         {playlists.map((pl) => (
           <PlaylistCard

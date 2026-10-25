@@ -20,12 +20,15 @@ const videoSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, default: "" },
   videoUrl: { type: String, required: true },
-  thumbnail: { type: String, required: true },
+  fileSizeBytes: { type: Number, min: 0 },
+  moderationCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "ModerationCase", unique: true, sparse: true },
+  thumbnail: { type: String, default: "" },
   tags: [{ type: String }],
   views: { type: Number, default: 0 },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   saveBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  downloadedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   comments: [commentSchema]
 }, { timestamps: true });

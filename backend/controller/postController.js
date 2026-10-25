@@ -1,6 +1,7 @@
 import Channel from "../model/channelModel.js";
-import uploadOnCloudinary from "../config/cloudinary.js";
+import uploadOnCloudinary, { getCloudinaryUploadErrorMessage } from "../config/cloudinary.js";
 import Post from "../model/postModel.js";
+import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPublishing } from "../service/moderationEnforcement.js";
 
 
 
@@ -9,12 +10,61 @@ export const createPost = async (req, res) => {
     const { channelId, content } = req.body;
     const file = req.file; // optional image
 
-    if (!channelId || !content) {
+    if (typeof channelId !== "string" || typeof content !== "string" || !content.trim()) {
+      await removeUploadedTempFiles(req);
       return res.status(400).json({ message: "Channel ID and content are required" });
     }
     const channel = await Channel.findOne({ _id: channelId, owner: req.userId });
     if (!channel) {
+      await removeUploadedTempFiles(req);
       return res.status(403).json({ message: "You can only publish to your own channel" });
+    }
+
+    if (content.length > 10000) {
+      await removeUploadedTempFiles(req);
+      return res.status(400).json({ message: "Community post text must be 10,000 characters or fewer." });
+    }
+
+    let screening;
+    try {
+      screening = await screenContentForPublishing({
+        req,
+        channel,
+        contentType: "post",
+        text: content.trim(),
+        imageFile: file,
+        channelCategory: channel.category,
+      });
+    } catch (error) {
+      console.error("AI educational review or agent handoff failed; community post was not published:", error);
+      await removeUploadedTempFiles(req);
+      return res.status(503).json({
+        message: "AI review or agent handoff is currently unavailable. The community post was not published; please try again later.",
+      });
+    }
+
+    if (screening.status === "pending_review") {
+      await removeUploadedTempFiles(req);
+      return res.status(202).json({
+        status: screening.status,
+        moderationCaseId: screening.caseId,
+        message: screening.reviewQueue === "agent"
+          ? "AI could not confirm the educational relevance. The community post was sent to the agent review queue."
+          : "AI could not confirm the educational relevance. The community post was sent for moderator review.",
+      });
+    }
+    if (screening.status === "rejected") {
+      await removeUploadedTempFiles(req);
+      clearBlockedAccountSession(res);
+      const isPermanent = screening.blockType === "permanent";
+      return res.status(403).json({
+        message: isPermanent
+          ? `This community post was not published. Channel violation ${screening.violationCount}/5: the account is permanently blocked.`
+          : `This community post was not published. Channel violation ${screening.violationCount}/5: the account is blocked for 3 hours and has been signed out.`,
+        violationCount: screening.violationCount,
+        blockType: screening.blockType,
+        blockedUntil: screening.blockedUntil,
+      });
     }
 
     let imageUrl = null;
@@ -39,7 +89,10 @@ export const createPost = async (req, res) => {
      newPost
     );
   } catch (error) {
-    res.status(500).json({ message: "Error creating post", error: error.message });
+    await removeUploadedTempFiles(req);
+    const uploadError = getCloudinaryUploadErrorMessage(error, "post image");
+    console.error("Error creating post:", uploadError);
+    res.status(500).json({ message: `Error creating post: ${uploadError}` });
   }
 };
 

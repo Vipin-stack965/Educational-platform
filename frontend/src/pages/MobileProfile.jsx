@@ -1,10 +1,12 @@
+import { t } from '../../utils/i18n.js';
 import { signInWithPopup } from "firebase/auth";
-import { FaHistory, FaList, FaClock, FaThumbsUp, FaUserCircle, FaCog, FaQuestionCircle, FaCommentAlt } from "react-icons/fa";
+import { FaHistory, FaList, FaClock, FaThumbsUp, FaCog, FaQuestionCircle, FaCommentAlt } from "react-icons/fa";
 import { GoVideo } from "react-icons/go";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { auth, provider } from "../../utils/firebase";
+import { auth, getGoogleAuthErrorMessage, isFirebaseConfigured, provider } from "../../utils/firebase";
 import { setUserData } from "../redux/userSlice";
+import { clearOfflineUser, saveOfflineUser } from "../utils/offlineStorage";
 import axios from "axios";
 import { serverUrl } from "../config";
 import { showCustomAlert } from "../component/CustomAlert";
@@ -13,6 +15,7 @@ import { MdOutlineSwitchAccount } from "react-icons/md";
 import { FcGoogle } from "react-icons/fc";
 import { TiUserAddOutline } from "react-icons/ti";
 import { SiYoutubestudio } from "react-icons/si";
+import NameAvatar from "../component/NameAvatar";
 function MobileProfile() {
     const {userData} = useSelector(state=>state.user)
     const navigate = useNavigate()
@@ -22,8 +25,9 @@ function MobileProfile() {
         try {
             const result = await axios.get(serverUrl + "/api/auth/signout" , {withCredentials:true})
             console.log(result.data)
+            clearOfflineUser()
             dispatch(setUserData(null))
-            showCustomAlert("Signout Successfully")
+            showCustomAlert(t("Signout Successfully"))
 
 
         } catch (error) {
@@ -34,33 +38,39 @@ function MobileProfile() {
     }
 
     const googleSignIn = async () => {
+          if (!isFirebaseConfigured) {
+             showCustomAlert("Firebase API key is missing or invalid. Set VITE_FIREBASE_APIKEY in frontend/.env and restart the frontend.");
+             return;
+          }
+
           try {
-            const response = await signInWithPopup(auth,provider)
-           console.log(response)
+             const response = await signInWithPopup(auth,provider)
             let user = response.user
             let username = user.displayName
             let email = user.email
             let photoUrl = user.photoURL
             
             const result = await axios.post(serverUrl + "/api/auth/google-auth" , {username , email ,photoUrl} , {withCredentials:true})
+            saveOfflineUser(result.data)
             dispatch(setUserData(result.data))
     
                 navigate("/")
-                showCustomAlert("SignIn with Google Successfully")
+                showCustomAlert(t("SignIn with Google Successfully"))
           } catch (error) {
             console.log(error)
-            showCustomAlert("SignIn with Google Error")
+            showCustomAlert(getGoogleAuthErrorMessage(error))
           }
         }
   return (
     <div className="bg-[#0f0f0f] text-white h-[100%] w-[100%] top-[3%] flex flex-col pt-[100px] p-[10px] ">
       {/* Top Profile Section */}
       <div className="p-4 flex items-center gap-4 border-b border-gray-800">
-        {userData?.photoUrl ? (
-          <img src={userData.photoUrl} alt="profile" className="w-16 h-16 rounded-full" />
-        ) : (
-          <FaUserCircle className="text-6xl text-gray-400" />
-        )}
+        <NameAvatar
+          src={userData?.photoUrl}
+          name={userData?.username || userData?.name}
+          alt={t("profile")}
+          className="h-16 w-16 text-2xl"
+        />
         <div className="flex flex-col">
           {!userData?.isGuest && (
             <>
@@ -81,7 +91,7 @@ function MobileProfile() {
     }
   }}
 >
-  {userData?.channel ? "View Channel" : "Create Channel"}
+  {userData?.channel ? t("View Channel") : t("Create Channel")}
 </p>
           
         </div>
@@ -93,14 +103,13 @@ function MobileProfile() {
 
       {/* Auth Buttons */}
       <div className="flex gap-2 p-4 border-b border-gray-800 overflow-auto">
-            <button onClick={googleSignIn} className="bg-gray-800 text-nowrap px-3 py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><FcGoogle className="text-xl" />SignIn with Google Account</button>
+            <button onClick={googleSignIn} className="bg-gray-800 text-nowrap px-3 py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><FcGoogle className="text-xl" />{t("SignIn with Google Account")}</button>
           
-            <button onClick={()=>navigate("/signin")} className="bg-gray-800 px-3 py-1 rounded-2xl text-sm text-nowrap flex items-center justify-center gap-2"> <MdOutlineSwitchAccount className="text-xl" /> SignIn with other account</button>
-            <button onClick={()=>navigate("/signup")} className="bg-gray-800 px-3 text-nowrap py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><TiUserAddOutline className="text-xl" />
-                          Create new account</button>
+            <button onClick={()=>navigate("/signin")} className="bg-gray-800 px-3 py-1 rounded-2xl text-sm text-nowrap flex items-center justify-center gap-2"> <MdOutlineSwitchAccount className="text-xl" />{t(" SignIn with other account")}</button>
+            <button onClick={()=>navigate("/signup")} className="bg-gray-800 px-3 text-nowrap py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><TiUserAddOutline className="text-xl" />{t("\n                          Create new account")}</button>
            
           
-          {userData && <button onClick={handleSignOut} className="bg-gray-800 text-nowrap px-3 py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><FiLogOut className="text-xl" /> Sign out</button>}
+          {userData && <button onClick={handleSignOut} className="bg-gray-800 text-nowrap px-3 py-1 rounded-2xl text-sm flex items-center justify-center gap-2"><FiLogOut className="text-xl" />{t(" Sign out")}</button>}
      
       </div>
 
@@ -123,7 +132,7 @@ function ProfileMenuItem({ icon, text , onClick }) {
   return (
     <button onClick={onClick} className="flex items-center gap-3 p-4 hover:bg-[#272727] text-left " > 
       <span className="text-lg">{icon}</span>
-      <span className="text-sm">{text}</span>
+      <span className="text-sm">{t(text)}</span>
     </button>
   );
 }

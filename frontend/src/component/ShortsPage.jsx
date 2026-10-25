@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from "react";
 import { useSelector } from "react-redux";
 import ShortsCard from "./ShortsCard";
@@ -11,9 +12,7 @@ const ShortsPage = () => {
     <div className="px-6 py-4">
       {/* Heading */}
       <h2 className="text-xl font-bold mb-4 flex items-center gap-1">
-        <SiYoutubeshorts className="w-6 h-6 text-red-600" />
-        Shorts
-      </h2>
+        <SiYoutubeshorts className="w-6 h-6 text-red-600" />{t("\n        Shorts\n      ")}</h2>
 
       {/* Horizontal scroll with fixed width cards */}
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">

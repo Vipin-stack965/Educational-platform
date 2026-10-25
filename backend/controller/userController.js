@@ -1,4 +1,4 @@
-import uploadOnCloudinary from "../config/cloudinary.js"
+import uploadOnCloudinary, { getCloudinaryUploadErrorMessage } from "../config/cloudinary.js"
 import Channel from "../model/channelModel.js"
 import Short from "../model/shortModel.js"
 
@@ -13,7 +13,10 @@ export const getCurrentUser = async (req,res) => {
         if(!user){
             return res.status(404).json({message:"User not Found"})
         }
-        return res.status(200).json(user)
+        return res.status(200).json({
+            ...user.toObject(),
+            isAgentReview: Boolean(req.isAgentReview)
+        })
     } catch (error) {
          return res.status(500).json({message:`GetCurrentUser error ${error}`})
     }
@@ -23,8 +26,16 @@ export const getCurrentUser = async (req,res) => {
 // Create Channel
 export const createChannel = async (req, res) => {
   try {
-    const { name, description ,category} = req.body;
-    const userId = req.userId; 
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+    const description = typeof req.body.description === "string" ? req.body.description.trim() : "";
+    const category = typeof req.body.category === "string" && req.body.category.trim()
+      ? req.body.category.trim()
+      : "General";
+    const userId = req.userId;
+
+    if (!name) {
+      return res.status(400).json({ message: "Channel name is required" });
+    }
 
     // Check if user already has a channel
     const existingChannel = await Channel.findOne({ owner: userId });
@@ -39,15 +50,31 @@ export const createChannel = async (req, res) => {
     }
 
     const account = await User.findById(userId).select("preferences.profileVisibility");
+    if (!account) {
+      return res.status(404).json({ message: "Account not found. Please sign in again." });
+    }
 
-      let avatar;
+    let avatar;
     let bannerImage;
+    const uploadErrors = [];
 
     if (req.files?.avatar) {
-      avatar = await uploadOnCloudinary(req.files.avatar[0].path);
+      try {
+        avatar = await uploadOnCloudinary(req.files.avatar[0].path);
+      } catch (error) {
+        const message = getCloudinaryUploadErrorMessage(error, "channel avatar");
+        console.error("Channel avatar upload failed:", message);
+        uploadErrors.push(`Avatar: ${message}`);
+      }
     }
     if (req.files?.bannerImage) {
-      bannerImage = await uploadOnCloudinary(req.files.bannerImage[0].path);
+      try {
+        bannerImage = await uploadOnCloudinary(req.files.bannerImage[0].path);
+      } catch (error) {
+        const message = getCloudinaryUploadErrorMessage(error, "channel banner");
+        console.error("Channel banner upload failed:", message);
+        uploadErrors.push(`Banner: ${message}`);
+      }
     }
 
     // Create channel
@@ -68,9 +95,12 @@ export const createChannel = async (req, res) => {
       photoUrl: avatar
     });
 
-    res.status(201).json(
-      newChannel
-    );
+    return res.status(201).json({
+      ...newChannel.toObject(),
+      warning: uploadErrors.length
+        ? `Channel created, but image upload failed. ${uploadErrors.join(" ")}`
+        : undefined
+    });
   } catch (error) {
     res.status(500).json({ message: "Error creating channel", error: error.message });
   }
@@ -79,7 +109,11 @@ export const createChannel = async (req, res) => {
 // Update Channel
 export const updateChannel = async (req, res) => {
   try {
-    const { name, description, category } = req.body;
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : undefined;
+    const description = typeof req.body.description === "string" ? req.body.description.trim() : undefined;
+    const category = typeof req.body.category === "string"
+      ? req.body.category.trim() || "General"
+      : undefined;
     const userId = req.userId;
 
     // Find channel owned by user
@@ -89,6 +123,9 @@ export const updateChannel = async (req, res) => {
     }
 
     // Check if new name is already taken (by another channel)
+    if (name !== undefined && !name) {
+      return res.status(400).json({ message: "Channel name cannot be empty" });
+    }
     if (name && name !== channel.name) {
       const nameExists = await Channel.findOne({ name });
       if (nameExists) {
@@ -101,29 +138,52 @@ export const updateChannel = async (req, res) => {
     if (description !== undefined) channel.description = description;
     if (category !== undefined) channel.category = category;
 
-    // Handle file uploads (avatar & bannerImage)
+    const uploadErrors = [];
+
+    // Keep metadata changes even if an optional image upload is unavailable.
     if (req.files?.avatar) {
-      const avatar = await uploadOnCloudinary(req.files.avatar[0].path);
-      channel.avatar = avatar;
+      try {
+        channel.avatar = await uploadOnCloudinary(req.files.avatar[0].path);
+      } catch (error) {
+        const message = getCloudinaryUploadErrorMessage(error, "channel avatar");
+        console.error("Channel avatar update upload failed:", message);
+        uploadErrors.push(`Avatar: ${message}`);
+      }
     }
     if (req.files?.bannerImage) {
-      const bannerImage = await uploadOnCloudinary(req.files.bannerImage[0].path);
-      channel.bannerImage = bannerImage;
+      try {
+        channel.bannerImage = await uploadOnCloudinary(req.files.bannerImage[0].path);
+      } catch (error) {
+        const message = getCloudinaryUploadErrorMessage(error, "channel banner");
+        console.error("Channel banner update upload failed:", message);
+        uploadErrors.push(`Banner: ${message}`);
+      }
     }
 
     // Save updated channel
     const updatedChannel = await channel.save();
-    
 
     // Optionally update user's username & photo if channel name/avatar changes
-    await User.findByIdAndUpdate(userId, {
-  username: name || undefined,
-  photoUrl: channel.avatar || undefined
-},{new:true});
+    const userUpdates = {};
+    if (name !== undefined) userUpdates.username = name;
+    if (req.files?.avatar && !uploadErrors.some((uploadError) => uploadError.startsWith("Avatar:"))) {
+      userUpdates.photoUrl = channel.avatar || "";
+    }
+    if (Object.keys(userUpdates).length) {
+      await User.findByIdAndUpdate(userId, userUpdates);
+    }
 
-    return res.status(200).json(updatedChannel);
+    return res.status(200).json({
+      ...updatedChannel.toObject(),
+      warning: uploadErrors.length
+        ? `Channel updated, but image upload failed. ${uploadErrors.join(" ")}`
+        : undefined
+    });
   } catch (error) {
     console.error("Update Channel Error:", error);
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Channel name already taken" });
+    }
     return res.status(500).json({ message: "Error updating channel", error: error.message });
   }
 };

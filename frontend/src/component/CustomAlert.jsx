@@ -1,9 +1,10 @@
+import { t } from '../../utils/i18n.js';
 import { useState, useEffect } from "react";
 
 let alertHandler; // External trigger
 
 export const showCustomAlert = (message) => {
-  if (alertHandler) alertHandler(message);
+  if (alertHandler) alertHandler(t(message));
 };
 
 export default function CustomAlert() {
@@ -26,13 +27,10 @@ export default function CustomAlert() {
             <button
               onClick={() => setIsVisible(false)}
               className="bg-blue-500 hover:bg-blue-600 px-4 py-1 rounded-full text-sm"
-            >
-              OK
-            </button>
+            >{t("\n              OK\n            ")}</button>
           </div>
         </div>
       </div>
     )
   );
 }
-

@@ -1,8 +1,10 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 import { FaHeart, FaComment, FaReply, FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { serverUrl } from "../config";
 import { useSelector } from "react-redux";
+import NameAvatar from "./NameAvatar";
 
 export default function CommunityCard({ post }) {
   const { userData } = useSelector((state) => state.user);
@@ -70,7 +72,7 @@ export default function CommunityCard({ post }) {
       {post.image && (
         <img
           src={post.image}
-          alt="Post"
+          alt={t("Post")}
           className="w-90 h-80 object-cover rounded-xl mt-4 shadow-md"
         />
       )}
@@ -105,7 +107,7 @@ export default function CommunityCard({ post }) {
       {showComments && (
         <div className="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md p-4 rounded-t-2xl border-t border-gray-700 max-h-[50%] overflow-y-auto">
           <div className="flex items-center w-full justify-between py-[10px]">
-            <h3 className="text-gray-300 font-semibold mb-2">Comments</h3>
+            <h3 className="text-gray-300 font-semibold mb-2">{t("Comments")}</h3>
             <button
               onClick={() => setShowComments(false)}
               className="text-gray-400 hover:text-red-500 transition"
@@ -121,13 +123,14 @@ export default function CommunityCard({ post }) {
                 <div key={c._id} className="bg-gray-700 p-3 rounded-lg">
                   {/* Author Info */}
                   <div className="flex items-center gap-2 mb-1">
-                    <img
-                      src={c.author?.photoUrl || "/default-avatar.png"}
-                      alt="avatar"
-                      className="w-6 h-6 rounded-full"
+                    <NameAvatar
+                      src={c.author?.photoUrl}
+                      name={c.author?.username}
+                      alt={t("avatar")}
+                      className="h-6 w-6 text-[9px]"
                     />
                     <span className="text-sm font-semibold text-gray-200">
-                      {c.author?.username || "Unknown User"}
+                      {c.author?.username || t("Unknown User")}
                     </span>
                   </div>
 
@@ -139,14 +142,15 @@ export default function CommunityCard({ post }) {
                     <div className="mt-2 ml-12 space-y-2">
                       {[...c.replies].reverse().map((r) => (
                         <div key={r._id} className="flex items-start gap-2">
-                          <img
-                            src={r.author?.photoUrl || "/default-avatar.png"}
-                            alt="avatar"
-                            className="w-5 h-5 rounded-full"
+                          <NameAvatar
+                            src={r.author?.photoUrl}
+                            name={r.author?.username}
+                            alt={t("avatar")}
+                            className="h-5 w-5 text-[8px]"
                           />
                           <div>
                             <span className="text-xs font-semibold text-gray-300">
-                              {r.author?.username || "Unknown User"}
+                              {r.author?.username || t("Unknown User")}
                             </span>
                             <p className="text-xs text-gray-200 bg-gray-600 p-2 rounded mt-1">
                               {r.message}
@@ -164,30 +168,29 @@ export default function CommunityCard({ post }) {
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No comments yet</p>
+              <p className="text-gray-500 text-sm">{t("No comments yet")}</p>
             )}
           </div>
 
           {/* New Comment */}
           <div className="flex gap-2 mt-3 items-center">
-            <img
-              src={userData?.photoUrl || "/default-avatar.png"}
-              alt="avatar"
-              className="w-8 h-8 rounded-full"
+            <NameAvatar
+              src={userData?.photoUrl}
+              name={userData?.username || userData?.name}
+              alt={t("avatar")}
+              className="h-8 w-8 text-xs"
             />
             <input
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
+              placeholder={t("Write a comment...")}
               className="flex-1 px-3 py-2 rounded-lg bg-gray-700 text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               onClick={handleAddComment}
               className="px-4 py-2 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700"
-            >
-              Post
-            </button>
+            >{t("\n              Post\n            ")}</button>
           </div>
         </div>
       )}
@@ -214,23 +217,20 @@ function ReplyBox({ onReply }) {
           onClick={() => setShowReply(true)}
           className="text-blue-400 text-sm flex items-center gap-1 hover:underline"
         >
-          <FaReply /> Reply
-        </button>
+          <FaReply />{t(" Reply\n        ")}</button>
       ) : (
         <div className="flex gap-2 mt-2 items-center">
           <input
             type="text"
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Write a reply..."
+            placeholder={t("Write a reply...")}
             className="flex-1 px-3 py-1 rounded-lg bg-gray-600 text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
           <button
             onClick={handleReply}
             className="px-3 py-1 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700"
-          >
-            Post
-          </button>
+          >{t("\n            Post\n          ")}</button>
         </div>
       )}
     </div>

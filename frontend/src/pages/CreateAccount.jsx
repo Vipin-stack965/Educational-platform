@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 /* Add these at top imports if not already added */
 import { useState, useRef } from "react";
 import axios from "axios";
@@ -6,9 +7,10 @@ import { FaArrowLeft, FaUserCircle } from "react-icons/fa";
 import { showCustomAlert } from "../component/CustomAlert";
 import { ClipLoader } from "react-spinners";
 import { serverUrl } from "../config";
-import youtube from "../assets/playtube1.png"; // YouTube logo
+import brandLogo from "../assets/edutube-logo.svg";
 import { useDispatch } from "react-redux";
 import { setUserData } from "../redux/userSlice";
+import { saveOfflineUser } from "../utils/offlineStorage";
 
 const CreateAccount = () => {
   const navigate = useNavigate();
@@ -38,28 +40,34 @@ const CreateAccount = () => {
   const handleNext = () => {
     if (step === 1) {
       if (!userName || !email) {
-        showCustomAlert("Please fill all fields");
+        showCustomAlert(t("Please fill all fields"));
         return;
       }
     }
     if (step === 2) {
       if (!password || !confirmPassword) {
-        showCustomAlert("Please fill password fields");
+        showCustomAlert(t("Please fill password fields"));
         return;
       }
       if (password !== confirmPassword) {
-        showCustomAlert("Passwords do not match");
+        showCustomAlert(t("Passwords do not match"));
         return;
       }
     }
     setStep(step + 1);
   };
 
-  const handleCreateAccount = async () => {
-    if (!backendAvatar) {
-      showCustomAlert("Please select an avatar");
-      return;
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (loading) return;
+    if (step < 3) {
+      handleNext();
+    } else {
+      handleCreateAccount();
     }
+  };
+
+  const handleCreateAccount = async () => {
     setLoading(true);
     const formData = new FormData();
     formData.append("username", userName);
@@ -69,24 +77,25 @@ const CreateAccount = () => {
 
     try {
       const result = await axios.post(serverUrl + "/api/auth/signup", formData, { withCredentials: true });
-      console.log(result.data);
-      setLoading(false);
+      saveOfflineUser(result.data.user);
+      dispatch(setUserData(result.data.user));
       navigate("/");
-       dispatch(setUserData(result.data))
-      showCustomAlert("Account Created");
+      showCustomAlert(result.data.warning || "Account created");
     } catch (error) {
-      console.log(error);
+      const message = error.response?.data?.message || "Could not connect to the server. Please try again.";
+      showCustomAlert(message);
+    } finally {
       setLoading(false);
-      showCustomAlert(error.response.data.message);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#181818]">
-      <div className="bg-[#202124] rounded-2xl p-10 w-full max-w-md shadow-lg">
+    <div className="fixed inset-y-3 right-3 z-[100] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-gray-700 bg-[#202124] shadow-2xl sm:inset-y-0 sm:right-0 sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0">
+      <div className="mx-auto w-full max-w-md p-6 sm:p-10">
         {/* Back Button */}
         <div className="flex items-center mb-6">
           <button
+            type="button"
             onClick={() => {
               if (step > 1) {
                 setStep(step - 1);
@@ -98,37 +107,36 @@ const CreateAccount = () => {
           >
             <FaArrowLeft size={20} />
           </button>
-          <span className="text-white text-2xl font-medium">Create Account</span>
+          <span className="text-white text-2xl font-medium">{t("Create Account")}</span>
         </div>
 
+        <form onSubmit={handleSubmit}>
         {/* Step 1 */}
         {step === 1 && (
           <>
             <h1 className="text-3xl font-normal text-white mb-2 flex items-center gap-2">
-              <img src={youtube} alt="Logo" className="w-8 h-8" />
-              Basic Info
-            </h1>
+              <img src={brandLogo} alt={t("EduTube")} className="w-8 h-8" />{t("\n              Basic Info\n            ")}</h1>
             <input
               type="text"
-              placeholder="UserName"
+              required
+              placeholder={t("UserName")}
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               className="w-full bg-transparent border border-gray-500 rounded-md px-3 py-3 text-white focus:outline-none focus:border-blue-500 mb-4"
             />
             <input
               type="email"
-              placeholder="Email"
+              required
+              placeholder={t("Email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-transparent border border-gray-500 rounded-md px-3 py-3 text-white focus:outline-none focus:border-blue-500"
             />
             <div className="flex justify-end mt-10">
               <button
-                onClick={handleNext}
+                type="submit"
                 className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-              >
-                Next
-              </button>
+              >{t("\n                Next\n              ")}</button>
             </div>
           </>
         )}
@@ -137,23 +145,23 @@ const CreateAccount = () => {
         {step === 2 && (
           <>
             <h1 className="text-3xl font-normal text-white mb-6 flex items-center gap-2">
-              <img src={youtube} alt="Logo" className="w-8 h-8" />
-              Security
-            </h1>
+              <img src={brandLogo} alt={t("EduTube")} className="w-8 h-8" />{t("\n              Security\n            ")}</h1>
             <div className="flex items-center bg-[#3c4043] text-white px-3 py-2 rounded-full w-fit mb-6">
               <FaUserCircle className="mr-2" size={20} />
               {email}
             </div>
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              required
+              placeholder={t("Password")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-transparent border border-gray-500 rounded-md px-3 py-3 text-white focus:outline-none focus:border-blue-500 mb-4"
             />
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Confirm Password"
+              required
+              placeholder={t("Confirm Password")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full bg-transparent border border-gray-500 rounded-md px-3 py-3 text-white focus:outline-none focus:border-blue-500"
@@ -165,17 +173,13 @@ const CreateAccount = () => {
                 checked={showPassword}
                 onChange={() => setShowPassword(!showPassword)}
               />
-              <label htmlFor="showPass" className="text-gray-300 cursor-pointer">
-                Show Password
-              </label>
+              <label htmlFor="showPass" className="text-gray-300 cursor-pointer">{t("\n                Show Password\n              ")}</label>
             </div>
             <div className="flex justify-end mt-10">
               <button
-                onClick={handleNext}
+                type="submit"
                 className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-              >
-                Next
-              </button>
+              >{t("\n                Next\n              ")}</button>
             </div>
           </>
         )}
@@ -184,21 +188,19 @@ const CreateAccount = () => {
         {step === 3 && (
           <>
             <h1 className="text-3xl font-normal text-white mb-6 flex items-center gap-2">
-              <img src={youtube} alt="Logo" className="w-8 h-8" />
-              Choose Avatar
-            </h1>
+              <img src={brandLogo} alt={t("EduTube")} className="w-8 h-8" />{t("\n              Choose Avatar\n            ")}</h1>
 
             <div className="flex items-center gap-6 mb-6">
               <div className="relative w-28 h-28 rounded-full border-4 border-gray-500 overflow-hidden shadow-lg">
                 {frontendAvatar ? (
-                  <img src={frontendAvatar} alt="avatar preview" className="w-full h-full object-cover" />
+                  <img src={frontendAvatar} alt={t("avatar preview")} className="w-full h-full object-cover" />
                 ) : (
                   <FaUserCircle className="text-gray-500 w-full h-full p-2" />
                 )}
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-gray-300 font-medium">Upload Profile Picture</label>
+                <label className="text-gray-300 font-medium">{t("Profile Picture (optional)")}</label>
                 <input
                   type="file"
                   ref={avatarRef}
@@ -217,15 +219,16 @@ const CreateAccount = () => {
 
             <div className="flex justify-end">
               <button
-                onClick={handleCreateAccount}
+                type="submit"
                 disabled={loading}
                 className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full"
               >
-                {loading ? <ClipLoader size={20} color="white" /> : "Create Account"}
+                {loading ? <ClipLoader size={20} color="white" /> : t("Create Account")}
               </button>
             </div>
           </>
         )}
+        </form>
       </div>
     </div>
   );

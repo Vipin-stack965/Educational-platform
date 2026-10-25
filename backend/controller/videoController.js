@@ -1,38 +1,34 @@
 
 import Video from "../model/videoModel.js";
 import Channel from "../model/channelModel.js";
-import uploadOnCloudinary from "../config/cloudinary.js";
+import uploadOnCloudinary, { deleteCloudinaryAsset, getCloudinaryUploadErrorMessage } from "../config/cloudinary.js";
 import User from "../model/userModel.js";
+import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPublishing } from "../service/moderationEnforcement.js";
 
 
 export const createVideo = async (req, res) => {
+  let uploadedAssets;
   try {
     const { title, description, tags, channel } = req.body;
 
     // Validate required fields
-    if (!title || !req.files?.video || !req.files?.thumbnail || !channel) {
+    if (!title?.trim() || !req.files?.video?.[0] || !channel) {
+      await removeUploadedTempFiles(req);
       return res.status(400).json({
-        message: "Video, thumbnail, title, and channel ID are required"
+        message: "Video, title, and channel ID are required"
       });
     }
 
     // Get channel by ID
     const channelData = await Channel.findById(channel);
     if (!channelData) {
+      await removeUploadedTempFiles(req);
       return res.status(404).json({ message: "Channel not found" });
     }
     if (channelData.owner.toString() !== req.userId) {
+      await removeUploadedTempFiles(req);
       return res.status(403).json({ message: "You can only publish to your own channel" });
     }
-
-    // Upload video to Cloudinary
-    const uploadedVideo = await uploadOnCloudinary(req.files.video[0].path, {
-      resourceType: "video",
-      large: true
-    });
-
-    // Upload thumbnail to Cloudinary
-    const uploadedThumbnail = await uploadOnCloudinary(req.files.thumbnail[0].path);
 
     // Parse tags
     let parsedTags = [];
@@ -44,32 +40,147 @@ export const createVideo = async (req, res) => {
       }
     }
 
+    const videoFile = req.files.video[0];
+    const thumbnailFile = req.files.thumbnail?.[0];
+    const cloudinaryUploadStartedAt = Date.now();
+    const cloudinaryUploadsPromise = Promise.allSettled([
+      uploadOnCloudinary(videoFile.path, {
+        resourceType: "video",
+        large: true,
+        keepFile: true,
+        returnDetails: true,
+      }),
+      thumbnailFile
+        ? uploadOnCloudinary(thumbnailFile.path, { keepFile: true, returnDetails: true })
+        : Promise.resolve(null),
+    ]).then(async ([videoResult, thumbnailResult]) => {
+      console.info(`Video media staging completed in ${Date.now() - cloudinaryUploadStartedAt}ms.`);
+      const assets = {
+        media: videoResult.status === "fulfilled" ? videoResult.value : null,
+        thumbnail: thumbnailResult.status === "fulfilled" ? thumbnailResult.value : null,
+      };
+      const uploadError = [videoResult, thumbnailResult]
+        .find((result) => result.status === "rejected");
+      if (!uploadError) return { assets, error: null };
+
+      await Promise.all(Object.values(assets)
+        .filter(Boolean)
+        .map((asset) => deleteCloudinaryAsset(asset).catch((error) => {
+          console.error("Unable to clean up a partial video upload:", error);
+        })));
+      return { assets: null, error: uploadError.reason };
+    });
+
+    let screening = { status: "approved" };
+    if (process.env.ENABLE_VIDEO_EDUCATIONAL_MODERATION === "true") {
+      const screeningStartedAt = Date.now();
+      try {
+        screening = await screenContentForPublishing({
+          req,
+          channel: channelData,
+          contentType: "video",
+          title,
+          description: description || "",
+          tags: parsedTags,
+          mediaFile: videoFile,
+          thumbnailFile,
+          channelCategory: channelData.category,
+          uploadedAssetsPromise: cloudinaryUploadsPromise,
+        });
+        console.info(`Video moderation completed in ${Date.now() - screeningStartedAt}ms.`);
+      } catch (error) {
+        console.error(`Video moderation failed after ${Date.now() - screeningStartedAt}ms.`);
+        console.error("AI educational review or agent handoff failed; video was not published:", error);
+        const stagedUpload = await cloudinaryUploadsPromise;
+        uploadedAssets = stagedUpload.assets;
+        if (error.moderationCaseOwnsUploadedAssets) {
+          uploadedAssets = null;
+        } else if (uploadedAssets) {
+          await Promise.all(Object.values(uploadedAssets)
+            .filter(Boolean)
+            .map((asset) => deleteCloudinaryAsset(asset).catch((cleanupError) => {
+              console.error("Unable to clean up video media after review failed:", cleanupError);
+            })));
+        }
+        await removeUploadedTempFiles(req);
+        return res.status(503).json({
+          message: "Educational review is temporarily unavailable or busy. Your video was not published; please try again shortly.",
+        });
+      }
+    } else {
+      console.info("Video educational moderation is disabled.");
+    }
+
+    const stagedUpload = await cloudinaryUploadsPromise;
+    uploadedAssets = stagedUpload.assets;
+    await removeUploadedTempFiles(req);
+
+    if (screening.status === "rejected") {
+      await Promise.all(Object.values(uploadedAssets || {})
+        .filter(Boolean)
+        .map((asset) => deleteCloudinaryAsset(asset).catch((error) => {
+          console.error("Unable to clean up rejected video media:", error);
+        })));
+      uploadedAssets = null;
+      clearBlockedAccountSession(res);
+      const isPermanent = screening.blockType === "permanent";
+      return res.status(403).json({
+        message: isPermanent
+          ? `This video was not published. Channel violation ${screening.violationCount}/5: the account is permanently blocked.`
+          : `This video was not published. Channel violation ${screening.violationCount}/5: the account is blocked for 3 hours and has been signed out.`,
+        violationCount: screening.violationCount,
+        blockType: screening.blockType,
+        blockedUntil: screening.blockedUntil,
+      });
+    }
+
+    if (stagedUpload.error) throw stagedUpload.error;
+
+    if (screening.status === "pending_review") {
+      uploadedAssets = null;
+      return res.status(202).json({
+        status: screening.status,
+        moderationCaseId: screening.caseId,
+        message: screening.reviewQueue === "agent"
+          ? "AI could not confirm the educational relevance. The video was sent to the agent review queue."
+          : "AI could not confirm the educational relevance. The video was sent for moderator review.",
+      });
+    }
+
     // Create video
     const newVideo = await Video.create({
       channel: channelData._id,
       title,
       description: description || "",
-      videoUrl: uploadedVideo,
-      thumbnail: uploadedThumbnail,
+      videoUrl: uploadedAssets.media.secureUrl,
+      fileSizeBytes: videoFile.size,
+      thumbnail: uploadedAssets.thumbnail?.secureUrl || "",
       tags: parsedTags
     });
 
-    // ✅ Add video to channel's videos array
-   await Channel.findByIdAndUpdate(
-  channelData._id,
-  { $push: { videos: newVideo._id } },
-  { new: true } // returns updated doc
-);
+    await Channel.findByIdAndUpdate(
+      channelData._id,
+      { $push: { videos: newVideo._id } }
+    );
 
-    // Return updated channel along with new video
+    const populatedVideo = await newVideo.populate("channel", "name avatar");
+    uploadedAssets = null;
    return res.status(201).json({
       message: "Video uploaded successfully",
-      video: newVideo
+      video: populatedVideo
     });
 
   } catch (error) {
     console.error("Error creating video:", error);
-    const uploadError = error.error?.message || error.message || "Unknown upload error";
+    if (uploadedAssets) {
+      await Promise.all(Object.values(uploadedAssets)
+        .filter(Boolean)
+        .map((asset) => deleteCloudinaryAsset(asset).catch((cleanupError) => {
+          console.error("Unable to clean up failed video media:", cleanupError);
+        })));
+    }
+    await removeUploadedTempFiles(req);
+    const uploadError = getCloudinaryUploadErrorMessage(error, "video");
    return res.status(500).json({
       message: `Video upload failed: ${uploadError}`
     });
@@ -406,6 +517,53 @@ export const getSavedVideos = async (req, res) => {
     res.status(500).json({
       message: "Server error while fetching saved videos",
     });
+  }
+};
+
+export const addVideoToDownloads = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await Video.findByIdAndUpdate(
+      videoId,
+      { $addToSet: { downloadedBy: req.userId } },
+      { new: true }
+    );
+    if (!video) return res.status(404).json({ message: "Video not found" });
+
+    return res.status(200).json(video);
+  } catch (error) {
+    console.error("Error updating account downloads:", error);
+    return res.status(500).json({ message: "Unable to update downloads" });
+  }
+};
+
+export const removeVideoFromDownloads = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await Video.findByIdAndUpdate(
+      videoId,
+      { $pull: { downloadedBy: req.userId } },
+      { new: true }
+    );
+    if (!video) return res.status(404).json({ message: "Video not found" });
+
+    return res.status(200).json(video);
+  } catch (error) {
+    console.error("Error removing video from account downloads:", error);
+    return res.status(500).json({ message: "Unable to remove video from downloads" });
+  }
+};
+
+export const getDownloadedVideos = async (req, res) => {
+  try {
+    const videos = await Video.find({ downloadedBy: req.userId })
+      .populate("channel", "name avatar")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(videos);
+  } catch (error) {
+    console.error("Error fetching account downloads:", error);
+    return res.status(500).json({ message: "Unable to load your downloads" });
   }
 };
 

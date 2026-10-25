@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from "react";
 import { useSelector } from "react-redux";
 import {
@@ -16,9 +17,7 @@ const AnalyticsPage = () => {
 
   if (!channelData) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        Loading channel data...
-      </div>
+      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Loading channel data...\n      ")}</div>
     );
   }
 
@@ -36,11 +35,11 @@ const AnalyticsPage = () => {
 
   return (
     <div className="w-full min-h-screen p-4 sm:p-6  text-white space-y-8 mb-[50px]">
-      <h1 className="text-2xl font-bold">Channel Analytics (Video & Shorts Views)</h1>
+      <h1 className="text-2xl font-bold">{t("Channel Analytics (Video & Shorts Views)")}</h1>
 
       {/* Videos Chart */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-3">Videos Views</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("Videos Views")}</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={videoChartData}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -55,7 +54,7 @@ const AnalyticsPage = () => {
 
       {/* Shorts Chart */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-3">Shorts Views</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("Shorts Views")}</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={shortChartData}>
             <CartesianGrid strokeDasharray="3 3" />

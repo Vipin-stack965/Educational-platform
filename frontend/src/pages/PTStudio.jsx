@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -22,8 +23,7 @@ function PTStudio() {
           onClick={() => navigate("/")}
         >
           <SiYoutubestudio className="text-orange-500 w-7 h-7" />
-          <h1 className="text-lg sm:text-xl font-bold tracking-wide text-white">
-            PT <span className="text-[#ffffff]">Studio</span>
+          <h1 className="text-lg sm:text-xl font-bold tracking-wide text-white">{t("\n            PT ")}<span className="text-[#ffffff]">{t("Studio")}</span>
           </h1>
         </div>
 
@@ -32,14 +32,12 @@ function PTStudio() {
           <button
             onClick={() => navigate("/createpage")}
             className=" bg-[#272727] px-3 sm:px-4 py-1 lg:rounded-lg  rounded-full hover:bg-[#161414] active:scale-95 transition cursor-pointer text-sm sm:text-base flex items-center justify-center gap-1" 
-          >
-          + Create
-          </button>
+          >{t("\n          + Create\n          ")}</button>
 
           {channelData ? (
             <img
               src={channelData.avatar}
-              alt="channel avatar"
+              alt={t("channel avatar")}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-gray-600 object-cover hover:scale-105 transition"
               onClick={() => setOpen((prev) => !prev)}
             />
@@ -58,14 +56,14 @@ function PTStudio() {
             <div className="flex flex-col items-center gap-2 mb-8 text-center">
               <img
                 src={channelData.avatar}
-                alt="channel avatar"
+                alt={t("channel avatar")}
                 className="w-28 h-28 rounded-full border border-gray-700 object-cover shadow-md hover:scale-105 transition"
               />
               <h2 className="text-base lg:text-lg font-semibold">{channelData.name}</h2>
-              <p className="text-xs text-gray-400">Your Channel</p>
+              <p className="text-xs text-gray-400">{t("Your Channel")}</p>
             </div>
           ) : (
-            <p className="text-gray-400 text-sm mb-6">No channel data</p>
+            <p className="text-gray-400 text-sm mb-6">{t("No channel data")}</p>
           )}
 
           {/* Nav Items */}
@@ -176,7 +174,7 @@ function SidebarItem({ icon, text, onClick, active, setActive }) {
       }`}
     >
       <span className="text-base lg:text-lg">{icon}</span>
-      <span className="text-sm lg:text-base font-medium">{text}</span>
+      <span className="text-sm lg:text-base font-medium">{t(text)}</span>
     </button>
   );
 }
@@ -190,7 +188,7 @@ function MobileNavItem({ icon, text, onClick, active }) {
       } hover:text-white hover:bg-[#272727]`}
     >
       <span className="text-xl sm:text-2xl">{icon}</span>
-      <span className="text-[10px] sm:text-xs">{text}</span>
+      <span className="text-[10px] sm:text-xs">{t(text)}</span>
     </button>
   );
 }

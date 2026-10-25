@@ -26,7 +26,7 @@ const sendFeedbackMail = async ({ feedbackId, category, message, username, email
     from: userEmail,
     to: userEmail,
     replyTo: email,
-    subject: `PlayTube feedback: ${category}`,
+    subject: `EduTube feedback: ${category}`,
     text: `Feedback ${feedbackId} from ${username} (${email})\n\n${message}`,
     html: `<p>Feedback ID: ${escapeHtml(feedbackId)}</p><p>From: ${escapeHtml(username)} (${escapeHtml(email)})</p><p>Category: ${escapeHtml(category)}</p><p>${safeMessage}</p>`
   });

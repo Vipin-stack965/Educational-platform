@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import { useEffect, useState } from "react";
 import VideoCard from "../component/VideoCard";
 import ShortsCard from "../component/ShortsCard";
@@ -43,16 +44,16 @@ const FilterResults = ({ filterResults }) => {
 
   return (
     <div className="px-6 py-4 bg-[#00000051] border-1 border-gray-800 mb-[20px]">
-      <h1 className="text-2xl font-bold mb-4">Filtered Content :</h1>
+      <h1 className="text-2xl font-bold mb-4">{t("Filtered Content :")}</h1>
 
       {isEmpty ? (
-        <p className="text-gray-400 text-lg">No results found.</p>
+        <p className="text-gray-400 text-lg">{t("No results found.")}</p>
       ) : (
         <>
           {/* Videos Section */}
           {filterResults.videos?.length > 0 && (
             <div>
-              <h3 className="text-xl font-bold mb-4">Videos</h3>
+              <h3 className="text-xl font-bold mb-4">{t("Videos")}</h3>
               <div className="flex flex-wrap gap-6 mb-12">
                 {filterResults.videos.map((video) => (
                   <VideoCard
@@ -74,7 +75,7 @@ const FilterResults = ({ filterResults }) => {
           {/* Shorts Section */}
           {filterResults.shorts?.length > 0 && (
             <div className="mt-8">
-              <h3 className="text-xl font-bold mb-4">Shorts</h3>
+              <h3 className="text-xl font-bold mb-4">{t("Shorts")}</h3>
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {filterResults.shorts.map((short) => (
                   <div key={short._id} className="flex-shrink-0">

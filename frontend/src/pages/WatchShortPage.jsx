@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import axios from "axios";
 import React, { useRef, useState, useEffect } from "react";
 import {
@@ -5,7 +6,6 @@ import {
   FaThumbsDown,
   FaComment,
   FaPlay,
-  FaPause,
   FaDownload,
   FaBookmark,
   FaArrowDown, // for closing comment section
@@ -14,7 +14,8 @@ import { useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import { serverUrl } from "../config";
 import { ClipLoader } from "react-spinners";
-import Description from "../component/Description";
+import { showCustomAlert } from "../component/CustomAlert";
+import NameAvatar from "../component/NameAvatar";
 
 const WatchShortPage = () => {
   const { shortId } = useParams();
@@ -26,8 +27,7 @@ const WatchShortPage = () => {
   const selectedShort = allShortData?.find((s) => s._id === shortId);
   const [shortsList, setShortsList] = useState([]);
 
-  const [pausedIndex, setPausedIndex] = useState(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [pausedIndex, setPausedIndex] = useState(0);
 
 
   const [openCommentShortId, setOpenCommentShortId] = useState(null);
@@ -36,6 +36,7 @@ const WatchShortPage = () => {
   const [replyText, setReplyText] = useState({}); // reply state for each comment
   const [viewedShorts, setViewedShorts] = useState([]);
    const [loading,setLoading] = useState(false)
+   const [downloadLoadingId, setDownloadLoadingId] = useState(null)
 
 
   const videoRefs = useRef([]);
@@ -55,7 +56,6 @@ const WatchShortPage = () => {
 
       if (selected) {
         setShortsList([selected, ...remaining]);
-        setActiveIndex(0);
       } else {
         setShortsList(allShortData);
       }
@@ -75,12 +75,13 @@ const WatchShortPage = () => {
           if (video) {
             if (entry.isIntersecting) {
               video.muted = false;
-              video.play();
-              setActiveIndex(index);
+              video.play().catch((error) => {
+                console.error("Short playback failed:", error);
+                setPausedIndex(index);
+              });
+              const currentShortId = shortsList[index]?._id;
 
-              const currentShortId = shortsList[index]._id;
-
-              if (!viewedShorts.includes(currentShortId)) {
+              if (currentShortId && !viewedShorts.includes(currentShortId)) {
                 handleAddView(currentShortId);
                 setViewedShorts((prev) => [...prev, currentShortId]); // ✅ ab sahi id add hogi
               }
@@ -107,24 +108,43 @@ const WatchShortPage = () => {
     const video = videoRefs.current[index];
     if (video) {
       if (video.paused) {
-        video.play();
-        setPausedIndex(null);
+        video.play().catch((error) => {
+          console.error("Short playback failed:", error);
+          setPausedIndex(index);
+        });
       } else {
         video.pause();
-        setPausedIndex(index);
       }
     }
   };
 
-  // Download video
-  const handleDownload = (e, url, title) => {
+  const handleDownload = async (e, short) => {
     e.stopPropagation();
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = title || "short-video.mp4";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!userData || userData.isGuest) {
+      showCustomAlert(t("Sign in to save Shorts to your account Downloads."));
+      navigate("/signin");
+      return;
+    }
+    if (short.downloadedBy?.some((id) => id.toString() === userData._id.toString())) {
+      showCustomAlert(t("This Short is already in your account Downloads."));
+      return;
+    }
+
+    setDownloadLoadingId(short._id);
+    try {
+      const response = await axios.put(
+        `${serverUrl}/api/content/short/${short._id}/download`,
+        {},
+        { withCredentials: true }
+      );
+      setShortsList((current) => current.map((item) => item._id === short._id ? response.data : item));
+      showCustomAlert(t("Saved to your account Downloads. You can watch it on any signed-in device."));
+    } catch (error) {
+      console.error("Unable to save Short to account downloads:", error);
+      showCustomAlert(error.response?.data?.message || t("Unable to save this Short to your account Downloads."));
+    } finally {
+      setDownloadLoadingId(null);
+    }
   };
 
 
@@ -275,48 +295,54 @@ useEffect(() => {
   if (shortId) addHistory();
 }, [shortId]);
   return (
-    <div className="h-[90vh] w-full overflow-y-scroll snap-y snap-mandatory mt-[50px] re">
-      {shortsList?.map((short, index) => (
+    <div
+      className="mt-0 h-[calc(100dvh-160px)] w-full snap-y snap-mandatory overflow-y-auto bg-black md:h-[calc(100dvh-100px)]"
+    >
+      {shortsList.length === 0 ? (
+        <div className="flex h-full items-center justify-center px-6 text-center text-gray-300">
+          {allShortData == null ? t("Loading Shorts...") : t("No shorts available yet.")}
+        </div>
+      ) : shortsList.map((short, index) => (
         <div
           key={short._id}
-          className="h-screen w-full flex md:items-center items-start justify-center snap-start relative"
+          className="h-full w-full px-2 flex items-center justify-center snap-start relative"
         >
-          <div
-            className="relative w-[420px] md:w-[350px]  aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-xl border border-gray-700 cursor-pointer"
-            onClick={() => togglePlayPause(index)}
-          >
+          <div className="relative flex h-full max-w-full items-center gap-2">
+            <div
+              className="relative h-full max-h-full w-auto max-w-[calc(100vw-88px)] aspect-[9/16] cursor-pointer rounded-2xl border border-gray-700 bg-black shadow-xl"
+              onClick={() => togglePlayPause(index)}
+            >
             <video
               ref={(el) => (videoRefs.current[index] = el)}
               data-index={index}
               src={short.shortUrl}
-              className="w-full h-full object-cover"
+              className="w-full h-full rounded-2xl object-cover"
               loop
               playsInline
+              onPlay={() => setPausedIndex((current) => current === index ? null : current)}
+              onPause={() => setPausedIndex(index)}
             />
 
             {pausedIndex === index && (
-              <div className="absolute top-3 right-3 bg-black/60 rounded-full p-2">
-                <FaPlay className="text-white text-lg" />
-              </div>
-            )}
-
-            {pausedIndex !== index && activeIndex === index && (
-              <div className="absolute top-3 right-3 bg-black/60 rounded-full p-2">
-                <FaPause className="text-white text-lg" />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="rounded-full bg-black/55 p-4 shadow-lg backdrop-blur-sm">
+                  <FaPlay className="text-2xl text-white" />
+                </div>
               </div>
             )}
 
             {/* Bottom Info */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white space-y-2">
-              <div className="flex items-center justify-start gap-2" >
-                <img
+            <div className="absolute bottom-0 left-0 right-0 space-y-2 rounded-b-2xl bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 text-white sm:p-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <NameAvatar
                   src={short.channel?.avatar}
-                  alt=""
-                  className="w-8 h-8 rounded-full border-1 border-gray-700"
+                  name={short.channel?.name}
+                  alt={short.channel?.name}
+                  className="h-8 w-8 border border-gray-700 text-xs"
                   onClick={() => navigate(`/channelpage/${short?.channel._id}`)}
                 />
-                <span className="text-sm text-gray-300 " onClick={() => navigate(`/channelpage/${short?.channel._id}`)}>
-                  @{short.channel?.name || "Unknown Channel"}
+                <span className="min-w-0 flex-1 truncate text-sm text-gray-200" onClick={() => navigate(`/channelpage/${short?.channel._id}`)}>
+                  @{short.channel?.name || t("Unknown Channel")}
                 </span>
                 <button
                   onClick={(e) => {
@@ -326,62 +352,47 @@ useEffect(() => {
                   className={`${short?.channel?.subscribers?.includes(userData?._id)
                       ? "bg-[#000000a1] text-white border-1 border-gray-700"
                       : "bg-white text-black"
-                    }  text-xs px-[20px] py-[10px] rounded-full cursor-pointer`} disabled={loading}
+                    } shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold cursor-pointer disabled:cursor-not-allowed`} disabled={loading}
                 >
-                  {loading?<ClipLoader size={20} color="gray"/>:short?.channel?.subscribers?.includes(userData?._id)
-                    ? "Subscribed"
-                    : "Subscribe"}
+                  {loading?<ClipLoader size={16} color="gray"/>:short?.channel?.subscribers?.includes(userData?._id)
+                    ? t("Subscribed")
+                    : t("Subscribe")}
                 </button>
 
               </div>
-              <div className="flex items-center justify-start gap-3">
-                <h2 className="font-bold text-lg line-clamp-2">{short.title}</h2>
-              </div>
-               { short?.description && <div>
-  
-  <Description text={short?.description} />
-</div>}
-              <div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {short.tags &&
-                    short.tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                </div>
-                
+              <div className="flex min-w-0 items-center gap-3">
+                <h2 className="line-clamp-2 break-words text-base font-bold sm:text-lg">{short.title}</h2>
               </div>
             </div>
 
-            {/* Right Side Buttons */}
-            <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 text-white">
+            </div>
+
+            {/* Short actions stay beside the video frame. */}
+            <div className="z-10 flex shrink-0 flex-col items-center gap-3 text-white sm:gap-4">
               {/* Like */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleLike(short._id);
                 }}
-                className="flex flex-col items-center"
+                aria-label={t("Like")}
+                className="flex min-w-11 flex-col items-center gap-1 rounded-lg text-center"
               >
                 <div
                   className={`${short?.likes?.includes(userData?._id)
                       ? "bg-white"
                       : "bg-[#00000065] border border-gray-700"
-                    } p-3 rounded-full hover:bg-gray-700`}
+                    } flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-gray-700`}
                 >
                   <FaThumbsUp
-                    size={22}
+                    size={20}
                     className={`${short?.likes?.includes(userData?._id)
                         ? "text-black"
                         : "text-white"
                       }`}
                   />
                 </div>
-                <span className="text-xs mt-1">{short?.likes?.length}</span>
+                <span className="max-w-12 text-[11px] leading-tight">{short?.likes?.length || 0}</span>
               </button>
 
               {/* Dislike */}
@@ -390,23 +401,24 @@ useEffect(() => {
                   e.stopPropagation();
                   handleDislike(short._id);
                 }}
-                className="flex flex-col items-center"
+                aria-label={t("Dislike")}
+                className="flex min-w-11 flex-col items-center gap-1 rounded-lg text-center"
               >
                 <div
                   className={`${short?.dislikes?.includes(userData?._id)
                       ? "bg-white"
                       : "bg-[#00000065] border border-gray-700"
-                    } p-3 rounded-full hover:bg-gray-700`}
+                    } flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-gray-700`}
                 >
                   <FaThumbsDown
-                    size={22}
+                    size={20}
                     className={`${short?.dislikes?.includes(userData?._id)
                         ? "text-black"
                         : "text-white"
                       }`}
                   />
                 </div>
-                <span className="text-xs mt-1">{short?.dislikes?.length}</span>
+                <span className="max-w-12 text-[11px] leading-tight">{short?.dislikes?.length || 0}</span>
               </button>
 
               {/* Comment */}
@@ -423,24 +435,26 @@ useEffect(() => {
                     }));
                   }
                 }}
-                className="flex flex-col items-center"
+                aria-label={t("Comment")}
+                className="flex min-w-11 flex-col items-center gap-1 rounded-lg text-center"
               >
-                <div className="bg-[#00000065] border border-gray-700 p-3 rounded-full hover:bg-gray-700">
-                  <FaComment size={22} className="text-white" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-700 bg-[#00000065] transition-colors hover:bg-gray-700">
+                  <FaComment size={20} className="text-white" />
                 </div>
-                <span className="text-xs mt-1">Comment</span>
+                <span className="max-w-12 text-[10px] leading-tight">{t("Comment")}</span>
               </button>
 
 
               {/* Download */}
               <button
-                onClick={(e) => handleDownload(e, short.shortUrl, short.title)}
-                className="flex flex-col items-center"
+                onClick={(e) => handleDownload(e, short)}
+                aria-label={t("Download")}
+                className="flex min-w-11 flex-col items-center gap-1 rounded-lg text-center"
               >
-                <div className="bg-[#00000065] border border-gray-700 p-3 rounded-full hover:bg-gray-700">
-                  <FaDownload size={22} className="text-white" />
+                <div className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-gray-700 ${short.downloadedBy?.some((id) => id.toString() === userData?._id?.toString()) ? "bg-white" : "border border-gray-700 bg-[#00000065]"}`}>
+                  <FaDownload size={20} className={short.downloadedBy?.some((id) => id.toString() === userData?._id?.toString()) ? "text-black" : "text-white"} />
                 </div>
-                <span className="text-xs mt-1">Download</span>
+                <span className="max-w-12 text-[10px] leading-tight">{downloadLoadingId === short._id ? t("Saving...") : short.downloadedBy?.some((id) => id.toString() === userData?._id?.toString()) ? t("In Downloads") : t("Download")}</span>
               </button>
 
               {/* Save */}
@@ -449,23 +463,24 @@ useEffect(() => {
                   e.stopPropagation();
                   handleSave(short._id);
                 }}
-                className="flex flex-col items-center"
+                aria-label={t("Save")}
+                className="flex min-w-11 flex-col items-center gap-1 rounded-lg text-center"
               >
                 <div
                   className={`${short?.saveBy?.includes(userData?._id)
                       ? "bg-white"
                       : "bg-[#00000065] border border-gray-700"
-                    } p-3 rounded-full hover:bg-gray-700`}
+                    } flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-gray-700`}
                 >
                   <FaBookmark
-                    size={22}
+                    size={20}
                     className={`${short?.saveBy?.includes(userData?._id)
                         ? "text-black"
                         : "text-white"
                       }`}
                   />
                 </div>
-                <span className="text-xs mt-1">{short?.saveBy?.length}</span>
+                <span className="max-w-12 text-[11px] leading-tight">{short?.saveBy?.length || 0}</span>
               </button>
             </div>
 
@@ -473,7 +488,7 @@ useEffect(() => {
             {openCommentShortId === short._id && (
               <div className="absolute bottom-0 left-0 right-0 h-[60%] bg-black/95 text-white p-4 rounded-t-2xl overflow-y-auto">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold text-lg">Comments</h3>
+                  <h3 className="font-bold text-lg">{t("Comments")}</h3>
                   <button onClick={() => setOpenCommentShortId(null)}>
                     <FaArrowDown size={20} />
                   </button>
@@ -485,15 +500,13 @@ useEffect(() => {
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Add a comment..."
+                    placeholder={t("Add a comment...")}
                     className="flex-1 bg-gray-900 text-white p-2 rounded"
                   />
                   <button
                     onClick={() => handleAddComment(short._id)}
                     className="bg-black px-4 py-2  border-1 border-gray-700 rounded-xl"
-                  >
-                    Post
-                  </button>
+                  >{t("\n                    Post\n                  ")}</button>
                 </div>
 
                 {/* Comments list */}
@@ -505,13 +518,14 @@ useEffect(() => {
                         <div key={comment._id || Math.random()} className="bg-gray-800/40 p-2 rounded-lg">
                           {/* Author info */}
                           <div className="flex items-center gap-2 mb-1">
-                            <img
-                              src={comment?.author?.photoUrl || "/default-avatar.png"}
-                              alt="avatar"
-                              className="w-6 h-6 rounded-full"
+                            <NameAvatar
+                              src={comment?.author?.photoUrl}
+                              name={comment?.author?.username}
+                              alt={t("avatar")}
+                              className="h-6 w-6 text-[9px]"
                             />
                             <span className="text-sm font-semibold">
-                              {comment?.author?.username || "Unknown"}
+                              {comment?.author?.username || t("Unknown")}
                             </span>
                           </div>
 
@@ -529,7 +543,7 @@ useEffect(() => {
                                   [comment._id]: e.target.value,
                                 }))
                               }
-                              placeholder="Write a reply..."
+                              placeholder={t("Write a reply...")}
                               className="w-full bg-gray-900 text-white text-sm p-2 rounded"
                             />
                             <button
@@ -538,9 +552,7 @@ useEffect(() => {
                                 setReplyText((prev) => ({ ...prev, [comment._id]: "" })); // clear input
                               }}
                               className="mt-1 bg-red-500 px-3 py-1 rounded text-xs"
-                            >
-                              Reply
-                            </button>
+                            >{t("\n                              Reply\n                            ")}</button>
                           </div>
 
                           {/* Replies list */}
@@ -550,19 +562,23 @@ useEffect(() => {
                                 .filter((r) => r && r.message)
                                 .map((r) => (
                                   <div key={r._id || Math.random()} className="flex items-start gap-2">
-                                    <img
-                                      src={r?.author?.photoUrl || "/default-avatar.png"}
-                                      alt="avatar"
-                                      className="w-5 h-5 rounded-full"
+                                    <NameAvatar
+                                      src={r?.author?.photoUrl}
+                                      name={r?.author?.username}
+                                      alt={t("avatar")}
+                                      className="h-5 w-5 text-[8px]"
                                     />
                                     <div>
                                       <span className="text-xs font-semibold">
-                                        {r?.author?.username || "Unknown"}
+                                        {r?.author?.username || t("Unknown")}
                                       </span>
                                       <p className="text-xs text-gray-300 bg-gray-700 p-1 rounded mt-1">
                                         {r.message}
                                       </p>
                                     </div>
+
+
+
                                   </div>
                                 ))}
                             </div>
@@ -570,7 +586,7 @@ useEffect(() => {
                         </div>
                       ))
                   ) : (
-                    <p className="text-sm text-gray-400">No comments yet.</p>
+                    <p className="text-sm text-gray-400">{t("No comments yet.")}</p>
                   )}
                 </div>
 

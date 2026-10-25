@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
-import { setAllPostData, setAllShortData, setAllVideoData  } from '../redux/contentSlice';
+import { mergeAllVideoData, setAllPostData, setAllShortData } from '../redux/contentSlice';
 import { serverUrl } from '../config';
 import axios from 'axios';
 
@@ -15,7 +15,7 @@ const UsegetAllContent = () => {
             `${serverUrl}/api/content/allvideos`,
             { withCredentials: true }
           );
-          dispatch(setAllVideoData(res.data || []));
+          dispatch(mergeAllVideoData(res.data || []));
           console.log(res.data)
         } catch (err) {
           console.error(err);

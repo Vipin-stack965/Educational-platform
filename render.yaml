@@ -46,7 +46,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_SERVER_URL
-        value: https://edutube-backend.onrender.com
+        value: https://edutube-backend-gfmr.onrender.com
       - key: VITE_FIREBASE_APIKEY
         sync: false
     routes:

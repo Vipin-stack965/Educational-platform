@@ -16,7 +16,7 @@ services:
       - key: COOKIE_SAME_SITE
         value: none
       - key: CORS_ORIGIN
-        value: https://educational-platform-frontend-4e7x.onrender.com,https://edutube-frontend.onrender.com
+        value: https://edutube-frontend-qr5q.onrender.com,https://educational-platform-frontend-4e7x.onrender.com
       - key: JWT_SECRET
         generateValue: true
       - key: MONGODB_URL

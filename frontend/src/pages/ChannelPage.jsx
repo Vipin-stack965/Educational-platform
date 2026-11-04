@@ -161,6 +161,7 @@ export default function ChannelPage() {
                 key={v._id}
                 id={v._id}
                 thumbnail={v.thumbnail}
+                videoUrl={v.videoUrl}
                 duration={v.duration}
                 channelLogo={channel.avatar}
                 title={v.title}
@@ -178,6 +179,7 @@ export default function ChannelPage() {
                 key={short._id}
                 id={short._id}
                 shortUrl={short.shortUrl}
+                thumbnail={short.thumbnail}
                 title={short.title}
                 channelName={channel.name}
                 views={short.views}

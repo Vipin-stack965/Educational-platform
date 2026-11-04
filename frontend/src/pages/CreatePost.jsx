@@ -105,11 +105,6 @@ const CreatePost = () => {
           </div>
         )}
 
-        <details className="rounded-lg border border-gray-700 bg-[#181818] p-4">
-          <summary className="cursor-pointer font-medium">{t("Advanced: AI educational review")}</summary>
-          <p className="mt-2 text-sm text-gray-300">{t("Every upload is checked before publishing. Uncertain content is held for moderator review; this check cannot be disabled.")}</p>
-        </details>
-
         {/* Publish Button */}
         <button
           onClick={handlePublish}

@@ -26,13 +26,23 @@ const contentSlice = createSlice({
         allShortData:null,
         allPostData:null,
         recommendationData:null,
-        contentRevenue:null
+        contentRevenue:null,
+        videoUploadStatus:null
         
         
     },
     reducers:{
         setVideoData:(state,action)=>{
             state.videoData = action.payload
+        },
+        mergeVideoData:(state,action)=>{
+            state.videoData = mergeVideos(state.videoData, [action.payload])
+        },
+        setVideoUploadStatus:(state,action)=>{
+            state.videoUploadStatus = action.payload
+        },
+        clearVideoUploadStatus:(state)=>{
+            state.videoUploadStatus = null
         },
         setAllVideoData:(state,action)=>{
             state.allVideoData = action.payload
@@ -62,6 +72,7 @@ const contentSlice = createSlice({
 })
  
 export const {setVideoData} = contentSlice.actions
+export const {mergeVideoData, setVideoUploadStatus, clearVideoUploadStatus} = contentSlice.actions
 export const {setAllVideoData} = contentSlice.actions
 export const {mergeAllVideoData, addVideoData} = contentSlice.actions
 export const {setAllShortData} = contentSlice.actions

@@ -21,7 +21,12 @@ contentRouter.post("/moderation/cases/:caseId/review", isAuth, requireModerator,
 // for videoController
 contentRouter.post("/upload-video",isAuth,guestPublishLimit,upload.fields([
     { name: "video", maxCount: 1 },
-    { name: "thumbnail", maxCount: 1 }
+    { name: "thumbnail", maxCount: 1 },
+    { name: "quality360", maxCount: 1 },
+    { name: "quality480", maxCount: 1 },
+    { name: "quality720", maxCount: 1 },
+    { name: "quality1080", maxCount: 1 },
+    { name: "captions", maxCount: 5 }
   ]),createVideo);
 
 contentRouter.post("/get-videos",isAuth,getChannelVideos);
@@ -42,7 +47,7 @@ contentRouter.put("/update-video/:videoId",isAuth,upload.single("thumbnail"),upd
 contentRouter.delete("/delete-video/:videoId",isAuth,deleteVideo);
 
 // 👁️ Add view
-contentRouter.put("/video/:videoId/add-view", addView);
+contentRouter.put("/video/:videoId/add-view", isAuth, addView);
 
 // 👍 Like video
 contentRouter.put("/video/:videoId/toggle-like", isAuth, toggleLikeVideo);
@@ -68,7 +73,10 @@ contentRouter.post("/video/:videoId/:commentId/reply", isAuth, addReply);
 
 
 //for shortController
-contentRouter.post("/upload-short",isAuth,guestPublishLimit,upload.single("short") , createShort)
+contentRouter.post("/upload-short",isAuth,guestPublishLimit,upload.fields([
+  { name: "short", maxCount: 1 },
+  { name: "thumbnail", maxCount: 1 },
+]), createShort)
 
 contentRouter.get("/allshorts", getAllShorts)
 

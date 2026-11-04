@@ -1,16 +1,24 @@
 import { t } from '../../utils/i18n.js';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaArrowLeft } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverUrl } from "../config";
 import { showCustomAlert } from "../component/CustomAlert";
 
 function FeedbackPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const reportVideo = location.state?.reportVideo;
   const [category, setCategory] = useState("general");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!reportVideo) return;
+    setCategory("bug");
+    setMessage(`Report video: ${reportVideo.title}\nChannel: ${reportVideo.channelName || "Unknown"}\nVideo ID: ${reportVideo.id}\n\nReason for report: `);
+  }, [reportVideo]);
 
   const submit = async (event) => {
     event.preventDefault();

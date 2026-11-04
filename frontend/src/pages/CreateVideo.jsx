@@ -10,7 +10,7 @@ import axios from "axios";
 import { serverUrl } from "../config";
 import { showCustomAlert } from "../component/CustomAlert";
 import { setChannelData } from "../redux/userSlice";
-import { addVideoData } from "../redux/contentSlice";
+import { addVideoData, mergeVideoData, setVideoUploadStatus } from "../redux/contentSlice";
 import handlePublishingBlock from "../utils/handlePublishingBlock";
 
 
@@ -24,10 +24,12 @@ const CreateVideo = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [isPaidContent, setIsPaidContent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingUpload, setProcessingUpload] = useState(false);
   const dispatch = useDispatch()
+  const uploadMeasurementRef = useRef({ loaded: 0, total: 0, progress: 0, timestamp: 0 });
 
   const handleVideoChange = (e) => setVideoFile(e.target.files?.[0] || null);
   const handleThumbnailChange = (e) => setThumbnail(e.target.files[0]);
@@ -49,26 +51,67 @@ const CreateVideo = () => {
     formData.append("description", description);
     formData.append("tags", JSON.stringify(tags.split(",").map(tag => tag.trim())));
     formData.append("channel",channelData?._id); // channel id from logged-in user
+    formData.append("isPaidContent", String(isPaidContent));
 
     setLoading(true);
     setUploadProgress(0);
     setProcessingUpload(false);
+    uploadMeasurementRef.current = { loaded: 0, total: 0, progress: 0, timestamp: Date.now() };
+    dispatch(setVideoUploadStatus({
+      status: "uploading",
+      title: videoFile.name,
+      fileSize: videoFile.size,
+      loaded: 0,
+      total: null,
+      speed: 0,
+      progress: 0,
+    }));
     try {
       const result = await axios.post(`${serverUrl}/api/content/upload-video`, formData, {
         withCredentials: true,
         onUploadProgress: (event) => {
           if (!event.total) return;
           const progress = Math.min(100, Math.round((event.loaded / event.total) * 100));
+          const now = Date.now();
+          const previous = uploadMeasurementRef.current;
+          const elapsedSeconds = Math.max((now - previous.timestamp) / 1000, 0.001);
+          const speed = Math.max(0, (event.loaded - previous.loaded) / elapsedSeconds);
+          uploadMeasurementRef.current = {
+            loaded: event.loaded,
+            total: event.total,
+            progress,
+            timestamp: now,
+          };
           setUploadProgress(progress);
           if (progress === 100) setProcessingUpload(true);
+          dispatch(setVideoUploadStatus({
+            status: progress === 100 ? "processing" : "uploading",
+            title: videoFile.name,
+            fileSize: videoFile.size,
+            loaded: event.loaded,
+            total: event.total,
+            speed,
+            progress,
+          }));
         },
       });
       if (result.data.status === "pending_review") {
+        dispatch(setVideoUploadStatus({
+          status: "pending_review",
+          title: videoFile.name,
+          fileSize: videoFile.size,
+          loaded: uploadMeasurementRef.current.loaded || videoFile.size,
+          total: uploadMeasurementRef.current.total || videoFile.size,
+          speed: 0,
+          progress: 100,
+          message: result.data.message,
+        }));
         showCustomAlert(result.data.message);
-        navigate("/");
+        navigate("/ptstudio/content");
         return;
       }
       dispatch(addVideoData(result.data.video))
+      dispatch(mergeVideoData(result.data.video));
        // ✅ Update Redux channelData.videos instantly
       const updatedChannel = {
         ...channelData,
@@ -76,11 +119,29 @@ const CreateVideo = () => {
       };
       dispatch(setChannelData(updatedChannel));
 
+      dispatch(setVideoUploadStatus({
+        status: "complete",
+        title: videoFile.name,
+        fileSize: videoFile.size,
+        loaded: uploadMeasurementRef.current.loaded || videoFile.size,
+        total: uploadMeasurementRef.current.total || videoFile.size,
+        speed: 0,
+        progress: 100,
+      }));
       showCustomAlert(t("Video Uploaded Successfully"));
-      console.log(result.data)
-      navigate("/");
+      navigate("/ptstudio/content");
     } catch (error) {
       console.error(error);
+      dispatch(setVideoUploadStatus({
+        status: "failed",
+        title: videoFile.name,
+        fileSize: videoFile.size,
+        loaded: uploadMeasurementRef.current.loaded,
+        total: null,
+        speed: 0,
+        progress: uploadMeasurementRef.current.progress,
+        message: error.response?.data?.message || error.message || "Upload failed",
+      }));
       handlePublishingBlock(error, dispatch, navigate);
       showCustomAlert(error.response?.data?.message || error.message || "Upload failed");
     } finally {
@@ -124,9 +185,9 @@ const CreateVideo = () => {
               <MdCloudUpload size={22} />
               {videoFile ? t("Choose a different video") : t("Select video to upload")}
             </button>
-            <p className="mt-3 break-all text-sm text-gray-300">
-              {videoFile ? t("Video selected") : t("Choose a video file from your device")}
-            </p>
+            {videoFile && (
+              <p className="mt-3 break-all text-sm text-gray-300">{videoFile.name}</p>
+            )}
           </div>
 
           {/* Title */}
@@ -145,7 +206,6 @@ const CreateVideo = () => {
             onChange={(e) => setDescription(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
-
           {/* Tags */}
           <input
             type="text"
@@ -154,6 +214,24 @@ const CreateVideo = () => {
             onChange={(e) => setTags(e.target.value)}
             className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
+
+          <label className="flex items-start gap-3 rounded-lg border border-blue-900 bg-blue-950/30 p-4">
+            <input
+              type="checkbox"
+              checked={isPaidContent}
+              onChange={(event) => setIsPaidContent(event.target.checked)}
+              disabled={loading || userData?.isGuest}
+              className="mt-1 accent-blue-500"
+            />
+            <span>
+              <span className="block font-medium">{t("Upload as protected paid content")}</span>
+              <span className="mt-1 block text-sm text-gray-300">
+                {userData?.isGuest
+                  ? t("Create or sign in to an account to upload protected paid content.")
+                  : t("The video source will use Cloudinary authenticated delivery and play only for you, a verified purchaser, or an active channel member. Paid uploads currently support a single source file without quality variants or captions.")}
+              </span>
+            </span>
+          </label>
 
           {/* Thumbnail Upload */}
           <label htmlFor="thumbnail-upload" className="block cursor-pointer">
@@ -164,7 +242,7 @@ const CreateVideo = () => {
                 className="w-full rounded-lg border border-gray-700 mb-2"
               />
             ) : (
-              <div className="w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 border border-gray-700 mb-2">{t("Click to upload thumbnail (optional)")}</div>
+              <div className="w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 border border-gray-700 mb-2">{t("Upload thumbnail")}</div>
             )}
             <input
               id="thumbnail-upload"
@@ -174,11 +252,6 @@ const CreateVideo = () => {
               onChange={handleThumbnailChange}
             />
           </label>
-
-          <details className="rounded-lg border border-gray-700 bg-[#181818] p-4">
-            <summary className="cursor-pointer font-medium">{t("Advanced: AI educational review")}</summary>
-            <p className="mt-2 text-sm text-gray-300">{t("Every upload is checked before publishing. Uncertain content is held for moderator review; this check cannot be disabled.")}</p>
-          </details>
 
           {/* Publish Button */}
           <button

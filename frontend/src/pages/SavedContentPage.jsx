@@ -80,6 +80,7 @@ setSavedVideos(videosRes.data || []);
             <div key={short._id} className="flex-shrink-0">
               <ShortsCard
                 shortUrl={short.shortUrl}
+                thumbnail={short.thumbnail}
                 title={short.title}
                 channelName={short.channel?.name}
                 views={short.views}
@@ -102,6 +103,7 @@ setSavedVideos(videosRes.data || []);
             <VideoCard
               key={video._id}
               thumbnail={video.thumbnail}
+              videoUrl={video.videoUrl}
               duration={durations[video._id] || "0:00"}
               channelLogo={video.channel?.avatar}
               title={video.title}

@@ -9,7 +9,7 @@ const createMailAuthError = (cause) => {
   return error
 }
 
-const sendMail = async (to,otp) => {
+const sendWithGmail = async (to, subject, html) => {
   const userEmail = process.env.USER_EMAIL?.trim()
   const userPassword = process.env.USER_PASSWORD?.replace(/\s/g, "")
 
@@ -28,9 +28,8 @@ const sendMail = async (to,otp) => {
     await transporter.sendMail({
       from: userEmail,
       to,
-      subject: "Reset Your Password",
-      html: `<p>Your OTP for Password Reset is <b>${otp}</b>.
-        It expires in 5 minutes.</p>` // HTML body
+      subject,
+      html,
     })
   } catch (error) {
     if (error.responseCode === 535 || error.code === "EAUTH") {
@@ -41,5 +40,17 @@ const sendMail = async (to,otp) => {
     transporter.close()
   }
 }
+
+const sendMail = async (to, otp) => sendWithGmail(
+  to,
+  "Reset Your Password",
+  `<p>Your OTP for Password Reset is <b>${otp}</b>. It expires in 5 minutes.</p>`
+)
+
+export const sendAgentPanelPasswordResetEmail = async (to, resetUrl) => sendWithGmail(
+  to,
+  "Reset your EduTube Agent Panel password",
+  `<p>A password reset was requested for your Agent Panel account.</p><p><a href="${resetUrl}">Reset your password</a></p><p>This one-time link expires in 30 minutes. If you did not request this, ignore this email.</p>`
+)
 
 export default sendMail

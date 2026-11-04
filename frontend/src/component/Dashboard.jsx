@@ -1,5 +1,5 @@
 import { t } from '../../utils/i18n.js';
-import React from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import {
   FaEye,
@@ -15,6 +15,11 @@ function Dashboard() {
   const {contentRevenue} = useSelector((state)=>state.content)
   const navigate = useNavigate()
 
+  if (!channelData) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Loading channel data...\n      ")}</div>
+    );
+  }
 
   const totalVideoViews = (channelData.videos || []).reduce(
     (acc, vid) => acc + (vid.views || 0),
@@ -25,13 +30,6 @@ function Dashboard() {
     0
   );
   const totalViews = totalVideoViews + totalShortViews;
-
-
-  if (!channelData) {
-    return (
-      <div className="flex items-center justify-center h-screen text-gray-400">{t("\n        Loading channel data...\n      ")}</div>
-    );
-  }
 
   return (
     <div className="w-full  text-white min-h-screen p-4 sm:p-6 space-y-6 mb-[50px]">
@@ -62,12 +60,12 @@ function Dashboard() {
           <AnalyticsCard
             
             label={t("Subscribers")}
-            value={`+${channelData.subscribers?.length || 0}`}
+            value={channelData.subscribers?.length || 0}
           />
           <AnalyticsCard
            
             label={t("Estimated revenue")}
-            value={`+${contentRevenue || 0}`}
+            value={contentRevenue || 0}
             onClick={()=>navigate("/ptstudio/revenue")}
           />
         </div>
@@ -116,7 +114,7 @@ function Dashboard() {
 
 function AnalyticsCard({  label, value , onClick }) {
   return (
-    <div className="bg-[#0f0f0f] border border-gray-700 rounded-lg p-3 sm:p-4 shadow hover:shadow-lg transition" onClick={onClick}>
+    <div className="cursor-pointer bg-[#0f0f0f] border border-gray-700 rounded-lg p-3 sm:p-4 shadow hover:shadow-lg transition" onClick={onClick}>
       <div className="flex items-center gap-2 text-gray-400 text-xs sm:text-sm mb-2">
        {label}
       </div>
@@ -126,20 +124,54 @@ function AnalyticsCard({  label, value , onClick }) {
 }
 
 function ContentCard({ content, isShort = false , onClick  }) {
-  return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start bg-[#0f0f0f] border border-gray-700 rounded-lg p-3 sm:p-4 hover:bg-[#202020] transition" onClick={onClick}>
-      {/* Thumbnail */}
-      <img
-        src={content.thumbnail}
-        alt={t("thumbnail")}
-        className={`${
-          isShort ? "w-full sm:w-28 h-48 sm:h-40" : "w-full sm:w-40 h-48 sm:h-24"
-        } rounded-lg object-cover`}
-      />
+  const [duration, setDuration] = useState("");
+  const hasThumbnail = Boolean(content.thumbnail);
 
-      {/* Content Info */}
-      <div className="flex-1">
-        <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="font-semibold text-sm sm:text-base line-clamp-2">
+  const formatDuration = (seconds) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return "";
+    const totalSeconds = Math.floor(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+      : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+  };
+
+  const handleVideoMetadata = (event) => {
+    setDuration(formatDuration(event.currentTarget.duration));
+    if (!hasThumbnail && event.currentTarget.duration > 0) {
+      event.currentTarget.currentTime = Math.min(0.1, event.currentTarget.duration / 2);
+    }
+  };
+
+  return (
+    <article className="flex w-full flex-col items-start gap-4 sm:flex-row">
+      <button
+        type="button"
+        aria-label={content.title}
+        className={`group/video relative block w-full shrink-0 cursor-pointer overflow-hidden bg-black text-left ${isShort ? "h-48 sm:w-28 sm:h-40" : "aspect-video sm:aspect-auto sm:h-24 sm:w-40"}`}
+        onClick={onClick}
+      >
+        <video
+          src={content.videoUrl}
+          poster={content.thumbnail || undefined}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedMetadata={handleVideoMetadata}
+          className="h-full w-full object-cover"
+          aria-hidden="true"
+        />
+        {duration && (
+          <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white opacity-0 transition-opacity group-hover/video:opacity-100">
+            {duration}
+          </span>
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="w-full truncate font-semibold text-sm sm:text-base">
           {content.title}
         </h4>
         <p className="text-xs text-gray-400 mt-1">{t("\n          Published ")}{new Date(content.createdAt).toLocaleDateString()}
@@ -159,26 +191,33 @@ function ContentCard({ content, isShort = false , onClick  }) {
           </span>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
 function ContentCard1({ content , onClick }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start bg-[#0f0f0f] border border-gray-700 rounded-lg p-3 sm:p-4 hover:bg-[#202020] transition" onClick={onClick}>
+    <article className="flex w-full flex-col items-start gap-4 sm:flex-row">
       {/* Thumbnail */}
+      <button
+        type="button"
+        aria-label={content.title}
+        className="w-full cursor-pointer text-left sm:w-auto"
+        onClick={onClick}
+      >
        <video
           src={content.shortUrl}
-          className="w-20 h-24 object-cover"
+          className="h-48 w-full object-cover sm:h-40 sm:w-28"
           muted
           playsInline
           preload="metadata"
           onContextMenu={(e) => e.preventDefault()}
         />
+      </button>
 
       {/* Content Info */}
-      <div className="flex-1">
-        <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="font-semibold text-sm sm:text-base line-clamp-2">
+      <div className="min-w-0 flex-1">
+        <div className="w-[100%] flex flex-col items-start justify-center gap-2"><h4 className="w-full truncate font-semibold text-sm sm:text-base">
           {content.title}
         </h4>
         <p className="text-xs text-gray-400 mt-1">{t("\n          Published ")}{new Date(content.createdAt).toLocaleDateString()}
@@ -198,7 +237,7 @@ function ContentCard1({ content , onClick }) {
           </span>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 

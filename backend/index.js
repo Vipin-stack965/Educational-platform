@@ -1,5 +1,4 @@
 import express from 'express'
-import { timingSafeEqual } from 'node:crypto'
 import dotenv from 'dotenv'
 import connectDb from './config/connectDb.js'
 import cookieParser from 'cookie-parser'
@@ -9,7 +8,19 @@ import jwt from 'jsonwebtoken'
 import authRouter from './route/authRoute.js'
 import userRouter from './route/userRoute.js'
 import contentRouter from './route/contentRoute.js'
+import paymentRouter from './route/paymentRoute.js'
+import { handleRazorpayWebhook } from './controller/commerceController.js'
 import { applyModerationDecision } from './controller/moderationController.js'
+import {
+    createAgentPanelOffer,
+    getAgentPanelPaymentConfig,
+    getAgentPanelAnalytics,
+    listAgentPanelChannels,
+    listAgentPanelOffers,
+    updateAgentPanelOffer,
+} from './controller/adminIntegrationController.js'
+import requireAgentIntegration from './middleware/requireAgentIntegration.js'
+import { sendAgentPanelPasswordResetEmail } from './config/sendMail.js'
 
 dotenv.config()
 
@@ -19,6 +30,7 @@ const agentReviewSessionRoutes = new Set([
     "/api/auth/agent-guest-session",
     "/api/auth/exit-agent-review",
 ])
+app.post("/api/payments/webhook", express.raw({ type: "application/json" }), handleRazorpayWebhook)
 app.use(cookieParser())
 app.use(express.json())
 app.use(cors({
@@ -29,21 +41,7 @@ app.use(cors({
     credentials: true
 }))
 
-app.post("/api/integrations/moderation-cases/:caseId/review", (req, res, next) => {
-    if (!agentIntegrationSecret) {
-        return res.status(503).json({ message: "Agent moderation integration is not configured." })
-    }
-    const supplied = req.get("authorization")?.replace(/^Bearer\s+/i, "") || ""
-    const expectedBuffer = Buffer.from(agentIntegrationSecret)
-    const suppliedBuffer = Buffer.from(supplied)
-    if (
-        expectedBuffer.length !== suppliedBuffer.length ||
-        !timingSafeEqual(expectedBuffer, suppliedBuffer)
-    ) {
-        return res.status(401).json({ message: "Agent integration authentication failed." })
-    }
-    return next()
-}, async (req, res) => {
+app.post("/api/integrations/moderation-cases/:caseId/review", requireAgentIntegration, async (req, res) => {
     const result = await applyModerationDecision({
         caseId: req.params.caseId,
         decision: req.body?.decision,
@@ -52,6 +50,38 @@ app.post("/api/integrations/moderation-cases/:caseId/review", (req, res, next) =
     })
     return res.status(result.status).json(result.body)
 })
+
+app.post("/api/integrations/agent-panel/password-reset-email", requireAgentIntegration, async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : ""
+    const resetToken = typeof req.body?.resetToken === "string" ? req.body.resetToken : ""
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^[a-f0-9]{64}$/i.test(resetToken)) {
+        return res.status(400).json({ message: "A valid email and reset token are required." })
+    }
+
+    let panelUrl
+    try {
+        panelUrl = new URL(process.env.AGENT_PANEL_FRONTEND_URL?.trim() || "http://localhost:5174")
+        if (!["http:", "https:"].includes(panelUrl.protocol)) throw new Error("Unsupported panel URL protocol.")
+    } catch {
+        return res.status(503).json({ message: "Agent panel frontend URL is not configured." })
+    }
+
+    panelUrl.searchParams.set("resetPassword", resetToken)
+    try {
+        await sendAgentPanelPasswordResetEmail(email, panelUrl.toString())
+        return res.status(200).json({ message: "Password reset email sent." })
+    } catch (error) {
+        console.error("Agent panel password reset email failed:", error.message || error)
+        return res.status(503).json({ message: "Unable to send password reset email." })
+    }
+})
+
+app.get("/api/integrations/agent-panel/analytics", requireAgentIntegration, getAgentPanelAnalytics)
+app.get("/api/integrations/agent-panel/channels", requireAgentIntegration, listAgentPanelChannels)
+app.get("/api/integrations/agent-panel/payment-config", requireAgentIntegration, getAgentPanelPaymentConfig)
+app.get("/api/integrations/agent-panel/offers", requireAgentIntegration, listAgentPanelOffers)
+app.post("/api/integrations/agent-panel/offers", requireAgentIntegration, createAgentPanelOffer)
+app.patch("/api/integrations/agent-panel/offers/:offerId", requireAgentIntegration, updateAgentPanelOffer)
 
 app.use((req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next()
@@ -75,6 +105,7 @@ app.use((req, res, next) => {
 app.use("/api/auth",authRouter)
 app.use("/api/user",userRouter)
 app.use("/api/content",contentRouter)
+app.use("/api/payments",paymentRouter)
 
 app.get("/" , (req,res)=>{
     res.send("Hello from Server")

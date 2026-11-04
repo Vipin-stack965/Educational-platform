@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import VideoCard from "./VideoCard"; // your card component
+import { useHomeVideoPreferences } from "../utils/homeVideoActions";
 
 // Helper to get duration
 const getVideoDuration = (url, callback) => {
@@ -24,6 +25,12 @@ const AllVideosPage = () => {
     (state) => state.content.allVideoData
   ) || [];
 
+  const { dismissedVideoIds, dismissedChannelIds } = useHomeVideoPreferences();
+  const visibleVideos = allVideoData.filter((video) => {
+    const channelId = video.channel?._id || video.channel;
+    return !dismissedVideoIds.includes(video._id)
+      && !dismissedChannelIds.includes(channelId?.toString());
+  });
   const [durations, setDurations] = useState({});
 
   // Get duration for each video
@@ -42,9 +49,11 @@ const AllVideosPage = () => {
 
   return (
     <div className="flex flex-wrap gap-6 mb-12">
-      {allVideoData?.map((video) => (
+      {visibleVideos.map((video) => (
         <VideoCard
           key={video._id}
+          video={video}
+          showMoreActions
           thumbnail={video.thumbnail}
           duration={durations[video._id] || "0:00"}
           channelLogo={video.channel?.avatar}

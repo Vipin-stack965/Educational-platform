@@ -3,21 +3,29 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import NameAvatar from "./NameAvatar";
 
-const ShortsCard = ({ shortUrl, title, channelName,avatar, views ,id}) => {
+const ShortsCard = ({ shortUrl, thumbnail, title, channelName,avatar, views ,id}) => {
   const navigate = useNavigate()
   return (
     <div className="w-45 sm:w-48 cursor-pointer relative" onClick={()=>navigate(`/watch-short/${id}`)
     }>
       {/* Video box */}
       <div className="rounded-xl overflow-hidden bg-black w-full h-70 border-1 border-gray-700">
-        <video
-          src={shortUrl}
-          className="w-full h-full object-cover"
-          muted
-          playsInline
-          preload="metadata"
-          onContextMenu={(e) => e.preventDefault()}
-        />
+        {thumbnail ? (
+          <img src={thumbnail} alt={title} className="h-full w-full object-cover" />
+        ) : (
+          <video
+            src={shortUrl}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+              if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        )}
       </div>
 
       {/* Info */}

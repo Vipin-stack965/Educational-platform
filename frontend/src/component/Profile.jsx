@@ -15,7 +15,7 @@ import { clearOfflineUser, saveOfflineUser } from "../utils/offlineStorage";
 import { auth, getGoogleAuthErrorMessage, isFirebaseConfigured, provider } from "../../utils/firebase";
 import { signInWithPopup } from "firebase/auth";
 import { SiYoutubestudio } from "react-icons/si";
-import { FaCog, FaQuestionCircle, FaCommentAlt } from "react-icons/fa";
+import { FaCog, FaQuestionCircle, FaCommentAlt, FaCreditCard } from "react-icons/fa";
 
 const Profile = ({ onClose }) => {
  const navigate = useNavigate()
@@ -76,7 +76,7 @@ const Profile = ({ onClose }) => {
         onClick={onClose}
       />
       <div
-        className="fixed right-5 top-14 z-[60] w-72 rounded-xl bg-[#212121] text-white shadow-lg"
+        className="profile-menu fixed right-5 top-14 z-[60] max-h-[calc(100vh-4rem)] w-72 overflow-y-auto rounded-xl bg-[#212121] text-white shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
           {/* Profile Info */}
@@ -118,17 +118,17 @@ const Profile = ({ onClose }) => {
             <button
               type="button"
               aria-expanded={accountMenu === "signup"}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700"
+              className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               onClick={() => setAccountMenu((current) => current === "signup" ? "" : "signup")}
             >
               <TiUserAddOutline className="text-xl" />{t("Create new account")}
             </button>
             {accountMenu === "signup" && (
-              <div className="flex flex-col border-l border-gray-700 ml-9">
-                <button className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700" onClick={() => navigateAndClose("/signup")}>
+              <div className="profile-menu-submenu ml-9 mr-2 my-1 flex flex-col border-l border-gray-700 pl-1">
+                <button className="profile-menu-submenu-item flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/signup")}>
                   <TiUserAddOutline className="text-lg" />{t("Sign up with email")}
                 </button>
-                <button className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700" onClick={() => googleAuthentication("signup")}>
+                <button className="profile-menu-submenu-item flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => googleAuthentication("signup")}>
                   <FcGoogle className="text-xl" />{t("Sign up with Google")}
                 </button>
               </div>
@@ -136,31 +136,34 @@ const Profile = ({ onClose }) => {
             <button
               type="button"
               aria-expanded={accountMenu === "signin"}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700"
+              className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               onClick={() => setAccountMenu((current) => current === "signin" ? "" : "signin")}
             >
               <MdOutlineSwitchAccount className="text-xl" />{t("Sign in with other account")}
             </button>
             {accountMenu === "signin" && (
-              <div className="flex flex-col border-l border-gray-700 ml-9">
-                <button className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700" onClick={() => navigateAndClose("/signin")}>
+              <div className="profile-menu-submenu ml-9 mr-2 my-1 flex flex-col border-l border-gray-700 pl-1">
+                <button className="profile-menu-submenu-item flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/signin")}>
                   <MdOutlineSwitchAccount className="text-lg" />{t("Sign in with email")}
                 </button>
-                <button className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700" onClick={() => googleAuthentication("signin")}>
+                <button className="profile-menu-submenu-item flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => googleAuthentication("signin")}>
                   <FcGoogle className="text-xl" />{t("Sign in with Google")}
                 </button>
               </div>
             )}
-            {userData?.channel && <button className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700" onClick={()=>navigate("/ptstudio/dashboard")}>
+            {userData?.channel && <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={()=>navigate("/ptstudio/dashboard")}>
               <SiYoutubestudio className="w-5 h-5 text-orange-400" />{t(" PT Studio\n            ")}</button>}
-            <button className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700" onClick={() => navigateAndClose("/settings")}>
+            <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/memberships-and-purchases")}>
+              <FaCreditCard className="text-lg" />{t("Memberships & purchases")}
+            </button>
+            <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/settings")}>
               <FaCog className="text-lg" />{t(" Settings\n            ")}</button>
-            <button className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700" onClick={() => navigateAndClose("/help")}>
+            <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/help")}>
               <FaQuestionCircle className="text-lg" />{t(" Help\n            ")}</button>
-            <button className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700" onClick={() => navigateAndClose("/send-feedback")}>
+            <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => navigateAndClose("/send-feedback")}>
               <FaCommentAlt className="text-lg" />{t(" Send feedback\n            ")}</button>
             
-            {userData && <button className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700" onClick={handleSignOut}>
+            {userData && <button className="profile-menu-item mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" onClick={handleSignOut}>
               <FiLogOut className="text-xl" />{t(" Sign out\n            ")}</button>}
           </div>
       </div>

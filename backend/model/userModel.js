@@ -4,6 +4,8 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String },
+  countryCode: { type: String, uppercase: true, match: /^[A-Z]{2}$/ },
+  lastSeenAt: { type: Date, index: true },
   photoUrl: { type: String, default: "" },
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel" },
   isGuest: { type: Boolean, default: false },
@@ -13,12 +15,15 @@ const userSchema = new mongoose.Schema({
   guestDailyUsageDate: { type: String, default: "" },
   guestDailyUsageCount: { type: Number, default: 0 },
   preferences: {
-    theme: { type: String, enum: ["system", "light", "dark"], default: "system" },
+    theme: { type: String, enum: ["light", "dark"], default: "dark" },
     profileVisibility: { type: String, enum: ["public", "private"], default: "public" },
     saveWatchHistory: { type: Boolean, default: true },
     emailNotifications: { type: Boolean, default: true },
     autoplay: { type: Boolean, default: true },
-    language: { type: String, enum: ["en", "hi"], default: "en" }
+    language: { type: String, match: /^[a-z]{2,3}$/i, default: "en" },
+    locationMode: { type: String, enum: ["auto", "manual"], default: "auto" },
+    country: { type: String, default: "US" },
+    timeZone: { type: String, default: "UTC" }
   },
 
   // 🔐 OTP reset system

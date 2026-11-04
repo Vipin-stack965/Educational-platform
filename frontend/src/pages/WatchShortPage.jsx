@@ -40,6 +40,7 @@ const WatchShortPage = () => {
 
 
   const videoRefs = useRef([]);
+   const commentDrawerRef = useRef(null);
 
   // Arrange shorts
   useEffect(() => {
@@ -297,6 +298,11 @@ useEffect(() => {
   return (
     <div
       className="mt-0 h-[calc(100dvh-160px)] w-full snap-y snap-mandatory overflow-y-auto bg-black md:h-[calc(100dvh-100px)]"
+      onClick={(event) => {
+        if (openCommentShortId && !commentDrawerRef.current?.contains(event.target)) {
+          setOpenCommentShortId(null);
+        }
+      }}
     >
       {shortsList.length === 0 ? (
         <div className="flex h-full items-center justify-center px-6 text-center text-gray-300">
@@ -486,7 +492,7 @@ useEffect(() => {
 
             {/* Comment Section Drawer */}
             {openCommentShortId === short._id && (
-              <div className="absolute bottom-0 left-0 right-0 h-[60%] bg-black/95 text-white p-4 rounded-t-2xl overflow-y-auto">
+              <div ref={commentDrawerRef} className="absolute bottom-0 left-0 right-0 h-[60%] bg-black/95 text-white p-4 rounded-t-2xl overflow-y-auto">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-bold text-lg">{t("Comments")}</h3>
                   <button onClick={() => setOpenCommentShortId(null)}>

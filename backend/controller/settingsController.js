@@ -4,9 +4,9 @@ import User from "../model/userModel.js";
 import sendFeedbackMail from "../config/sendFeedbackMail.js";
 
 const preferenceOptions = {
-  theme: ["system", "light", "dark"],
+  theme: ["light", "dark"],
   profileVisibility: ["public", "private"],
-  language: ["en", "hi"]
+  locationMode: ["auto", "manual"]
 };
 
 const booleanPreferences = [
@@ -33,6 +33,7 @@ export const getSettings = async (req, res) => {
     return res.status(200).json({
       preferences: {
         ...user.preferences?.toObject(),
+        theme: user.preferences?.theme === "light" ? "light" : "dark",
         profileVisibility: channel
           ? (channel.isPublic === false ? "private" : "public")
           : (user.preferences?.profileVisibility || "public")
@@ -58,6 +59,18 @@ export const updateSettings = async (req, res) => {
       }
     }
 
+    if (Object.hasOwn(req.body, "language")) {
+      if (typeof req.body.language !== "string" || !/^[a-z]{2,3}$/i.test(req.body.language)) {
+        return res.status(400).json({ message: "Language must be a valid ISO language code" });
+      }
+      try {
+        const [canonicalLanguage] = Intl.getCanonicalLocales(req.body.language);
+        updates["preferences.language"] = canonicalLanguage;
+      } catch {
+        return res.status(400).json({ message: "Language must be a valid ISO language code" });
+      }
+    }
+
     for (const key of booleanPreferences) {
       if (Object.hasOwn(req.body, key)) {
         if (typeof req.body[key] !== "boolean") {
@@ -65,6 +78,25 @@ export const updateSettings = async (req, res) => {
         }
         updates[`preferences.${key}`] = req.body[key];
       }
+    }
+
+    if (Object.hasOwn(req.body, "country")) {
+      if (typeof req.body.country !== "string" || !/^[A-Z]{2}$/.test(req.body.country)) {
+        return res.status(400).json({ message: "Country must be a valid two-letter country code" });
+      }
+      updates["preferences.country"] = req.body.country;
+    }
+
+    if (Object.hasOwn(req.body, "timeZone")) {
+      if (typeof req.body.timeZone !== "string" || req.body.timeZone.length > 100) {
+        return res.status(400).json({ message: "Time zone must be a valid IANA time zone" });
+      }
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: req.body.timeZone });
+      } catch {
+        return res.status(400).json({ message: "Time zone must be a valid IANA time zone" });
+      }
+      updates["preferences.timeZone"] = req.body.timeZone;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -92,6 +124,7 @@ export const updateSettings = async (req, res) => {
     return res.status(200).json({
       preferences: {
         ...user.preferences?.toObject(),
+        theme: user.preferences?.theme === "light" ? "light" : "dark",
         profileVisibility: channel
           ? (channel.isPublic === false ? "private" : "public")
           : (user.preferences?.profileVisibility || "public")

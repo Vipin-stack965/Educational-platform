@@ -35,7 +35,7 @@ const AnalyticsPage = () => {
 
   return (
     <div className="w-full min-h-screen p-4 sm:p-6  text-white space-y-8 mb-[50px]">
-      <h1 className="text-2xl font-bold">{t("Channel Analytics (Video & Shorts Views)")}</h1>
+      <h1 className="text-2xl font-bold">{t("Channel Analytics")}</h1>
 
       {/* Videos Chart */}
       <div className="bg-[#0b0b0b] border border-gray-700 rounded-lg p-4">

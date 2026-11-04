@@ -5,7 +5,7 @@ import ModerationCase from "../model/moderationCaseModel.js";
 import Video from "../model/videoModel.js";
 import Short from "../model/shortModel.js";
 import Post from "../model/postModel.js";
-import uploadOnCloudinary from "../config/cloudinary.js";
+import uploadOnCloudinary, { deleteCloudinaryAsset } from "../config/cloudinary.js";
 import { reviewEducationalContent } from "./educationalModeration.js";
 import { createAgentReviewTask } from "./agentPanelIntegration.js";
 
@@ -51,6 +51,7 @@ export const saveModerationCase = async ({
   thumbnailFile,
   imageFile,
   uploadedAssets,
+  isPaidContent = false,
   fileSizeBytes,
   reason,
 }) => {
@@ -80,6 +81,12 @@ export const saveModerationCase = async ({
     tags,
     text,
     mediaUrl,
+    isPaidContent,
+    mediaPublicId: uploadedAssets?.media?.publicId || "",
+    mediaResourceType: uploadedAssets?.media?.resourceType || "",
+    mediaDeliveryType: uploadedAssets?.media?.deliveryType || "upload",
+    mediaVersion: uploadedAssets?.media?.version,
+    mediaFormat: uploadedAssets?.media?.format || "",
     thumbnailUrl,
     fileSizeBytes,
     mimeType: mediaFile?.mimetype || imageFile?.mimetype || "",
@@ -200,6 +207,12 @@ export const publishModerationCase = async (moderationCase) => {
           description: moderationCase.description,
           tags: moderationCase.tags,
           videoUrl: moderationCase.mediaUrl,
+          isPaidContent: moderationCase.isPaidContent,
+          mediaPublicId: moderationCase.mediaPublicId || "",
+          mediaResourceType: moderationCase.mediaResourceType || "video",
+          mediaDeliveryType: moderationCase.mediaDeliveryType || "upload",
+          mediaVersion: moderationCase.mediaVersion,
+          mediaFormat: moderationCase.mediaFormat || "",
           thumbnail: moderationCase.thumbnailUrl || "",
           fileSizeBytes: moderationCase.fileSizeBytes,
           moderationCaseId: moderationCase._id,
@@ -224,6 +237,7 @@ export const publishModerationCase = async (moderationCase) => {
           description: moderationCase.description,
           tags: moderationCase.tags,
           shortUrl: moderationCase.mediaUrl,
+          thumbnail: moderationCase.thumbnailUrl || "",
           moderationCaseId: moderationCase._id,
         },
       },
@@ -255,22 +269,24 @@ export const publishModerationCase = async (moderationCase) => {
 };
 
 export const deletePendingMedia = async (moderationCase) => {
-  const { v2: cloudinary } = await import("cloudinary");
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_NAME?.trim(),
-    api_key: process.env.CLOUDINARY_API_KEY?.trim(),
-    api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
-  });
-  const files = [
-    { url: moderationCase.mediaUrl, resourceType: moderationCase.contentType === "post" ? "image" : "video" },
-    { url: moderationCase.thumbnailUrl, resourceType: "image" },
-  ].filter((file) => file.url);
+  const files = [{
+    publicId: moderationCase.mediaPublicId,
+    resourceType: moderationCase.mediaResourceType || (moderationCase.contentType === "post" ? "image" : "video"),
+    deliveryType: moderationCase.mediaDeliveryType,
+    url: moderationCase.mediaUrl,
+  }, {
+    url: moderationCase.thumbnailUrl,
+    resourceType: "image",
+  }].filter((file) => file.url);
 
   for (const file of files) {
-    const match = file.url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-    if (!match) continue;
     try {
-      await cloudinary.uploader.destroy(match[1], { resource_type: file.resourceType });
+      if (file.publicId) {
+        await deleteCloudinaryAsset(file);
+        continue;
+      }
+      const match = file.url.match(/\/(?:upload|authenticated)\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)\.[^.]+$/);
+      if (match) await deleteCloudinaryAsset({ publicId: match[1], resourceType: file.resourceType });
     } catch (error) {
       console.error("Unable to remove rejected moderation media:", error);
     }

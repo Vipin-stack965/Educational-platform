@@ -46,6 +46,8 @@ import SettingsPage from './pages/SettingsPage'
 import HelpPage from './pages/HelpPage'
 import FeedbackPage from './pages/FeedbackPage'
 import ModerationQueuePage from './pages/ModerationQueuePage'
+import MembershipsAndPurchasesPage from './pages/MembershipsAndPurchasesPage'
+import { serverUrl } from './config'
 import { setLanguage, t } from '../utils/i18n.js'
 
 const ProtectedRoute = ({ userData, isAuthLoading, children, accountOnly = false }) => {
@@ -71,6 +73,7 @@ const ProtectedRoute = ({ userData, isAuthLoading, children, accountOnly = false
 }
 
 function App() {
+  const location = useLocation()
   useGetCurrentUser()
   UsegetChannel()
   UsegetChannelContent()
@@ -87,30 +90,45 @@ function App() {
   }, [])
 
   const { userData, isAuthLoading } = useSelector(state => state.user)
-  const themePreference = userData?.preferences?.theme || 'system'
+  useEffect(() => {
+    if (!userData?._id || userData.isAgentReview) return undefined
+
+    const recordActivity = async () => {
+      try {
+        const response = await fetch(`${serverUrl}/api/user/heartbeat`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (!response.ok) throw new Error(`Activity update returned HTTP ${response.status}.`)
+      } catch (error) {
+        console.error('Unable to update account activity:', error)
+      }
+    }
+
+    recordActivity()
+    const interval = window.setInterval(recordActivity, 60_000)
+    return () => window.clearInterval(interval)
+  }, [userData?._id, userData?.isAgentReview])
+
+  const watchVideoId = location.pathname.match(/^\/watch-video\/([^/]+)$/)?.[1] || null
+  const [lastWatchVideoId, setLastWatchVideoId] = React.useState(null)
+  const themePreference = userData?.preferences?.theme === 'light' ? 'light' : 'dark'
   const languagePreference = userData?.preferences?.language || 'en'
 
   setLanguage(languagePreference)
 
   useEffect(() => {
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-
-    const applyPreferences = () => {
-      const theme = themePreference === 'system'
-        ? (systemTheme.matches ? 'dark' : 'light')
-        : themePreference
-
-      document.documentElement.dataset.theme = theme
-      document.documentElement.lang = languagePreference
+    if (watchVideoId) {
+      setLastWatchVideoId(watchVideoId)
+    } else if (!userData) {
+      setLastWatchVideoId(null)
     }
+  }, [watchVideoId, userData])
 
-    applyPreferences()
-
-    if (themePreference === 'system') {
-      systemTheme.addEventListener('change', applyPreferences)
-    }
-
-    return () => systemTheme.removeEventListener('change', applyPreferences)
+  useEffect(() => {
+    const appRoot = document.getElementById('root')
+    if (appRoot) appRoot.dataset.theme = themePreference
+    document.documentElement.lang = languagePreference
   }, [themePreference, languagePreference])
 
   const protect = (children, accountOnly = false) => (
@@ -140,6 +158,13 @@ function App() {
           </div>
         }
       >
+        {lastWatchVideoId && protect(
+            <WatchVideoPage
+              videoId={watchVideoId || lastWatchVideoId}
+              isPersistentMiniPlayer={!watchVideoId}
+              onDismissMiniPlayer={() => setLastWatchVideoId(null)}
+            />
+        )}
         <Routes>
           <Route path="/" element={<Home />}>
             <Route path="/shorts" element={protect(<Shorts />)} />
@@ -147,6 +172,7 @@ function App() {
             <Route path="/updatechannel" element={protect(<UpdateChannel />)} />
             <Route path="/mobileprofile" element={<MobileProfile />} />
             <Route path="/settings" element={protect(<SettingsPage />)} />
+            <Route path="/memberships-and-purchases" element={protect(<MembershipsAndPurchasesPage />, true)} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/send-feedback" element={protect(<FeedbackPage />, true)} />
             <Route path="/createpage" element={protect(<CreatePage />)} />
@@ -164,13 +190,12 @@ function App() {
             <Route path="/history" element={protect(<HistoryPage />)} />
           </Route>
 
+          <Route path="/watch-video/:videoId" element={<Home />} />
           <Route path="/signin" element={<EduTubeSignin />} />
           <Route path="/signup" element={<Home accountOverlay={<CreateAccount />} />} />
           <Route path="/forgetpassword" element={<ForgetPassword />} />
           <Route path="/moderation" element={protect(<ModerationQueuePage />)} />
           <Route path="/createchannel" element={protect(<CreateChannelFlow />)} />
-          <Route path="/watch-video/:videoId" element={protect(<WatchVideoPage />)} />
-
           <Route path="/ptstudio" element={protect(<PTStudio />)}>
             <Route path="/ptstudio/dashboard" element={protect(<Dashboard />)} />
             <Route path="/ptstudio/content" element={protect(<ContentPage />)} />

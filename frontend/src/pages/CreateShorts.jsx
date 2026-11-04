@@ -1,6 +1,6 @@
 import { t } from '../../utils/i18n.js';
-import React, { useState } from "react";
-import { FaTimes, FaCloudUploadAlt } from "react-icons/fa";
+import React, { useEffect, useState } from "react";
+import { FaTimes, FaCloudUploadAlt, FaImage } from "react-icons/fa";
 import { ClipLoader } from "react-spinners";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -18,10 +18,33 @@ const CreateShort = () => {
   const {allShortData} = useSelector((state=>state.content))
 
   const [video, setVideo] = useState(null);
+  const [thumbnail, setThumbnail] = useState(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState("");
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!video) {
+      setVideoPreviewUrl("");
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(video);
+    setVideoPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [video]);
+
+  useEffect(() => {
+    if (!thumbnail) {
+      setThumbnailPreviewUrl("");
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(thumbnail);
+    setThumbnailPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [thumbnail]);
 
   const handlePublish = async () => {
     if (!channelData?._id) {
@@ -35,6 +58,7 @@ const CreateShort = () => {
 
     const formData = new FormData();
     formData.append("short", video);
+    if (thumbnail) formData.append("thumbnail", thumbnail);
     formData.append("title", title);
     formData.append("description", description);
     formData.append(
@@ -96,7 +120,7 @@ const CreateShort = () => {
   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-500 rounded-lg cursor-pointer bg-[#181818] overflow-hidden w-[220px] aspect-[9/16]">
     {video ? (
       <video
-        src={URL.createObjectURL(video)}
+        src={videoPreviewUrl}
         className="h-full w-full object-cover"
         controls
       />
@@ -118,18 +142,31 @@ const CreateShort = () => {
 
           {/* RIGHT: Inputs */}
           <div className="flex flex-col space-y-4">
-            <input
+  <label className="flex cursor-pointer items-center gap-3 rounded-lg bg-[#181818] p-3 text-sm text-gray-300 hover:bg-[#292929]">
+    <FaImage aria-hidden="true" />
+    <span>{thumbnail ? thumbnail.name : t("Upload thumbnail (optional)")}</span>
+    <input
+      type="file"
+      accept="image/*"
+      className="sr-only"
+      disabled={loading}
+      onChange={(event) => setThumbnail(event.target.files?.[0] || null)}
+    />
+  </label>
+  {thumbnailPreviewUrl && (
+    <img
+      src={thumbnailPreviewUrl}
+      alt={t("Short thumbnail preview")}
+      className="max-h-48 w-fit max-w-full object-contain"
+    />
+  )}
+  <input
               type="text"
               placeholder={t("Title (required)")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
-
-            <details className="rounded-lg border border-gray-700 bg-[#181818] p-4">
-              <summary className="cursor-pointer font-medium">{t("Advanced: AI educational review")}</summary>
-              <p className="mt-2 text-sm text-gray-300">{t("Every upload is checked before publishing. Uncertain content is held for moderator review; this check cannot be disabled.")}</p>
-            </details>
 
             <textarea
               placeholder={t("Description")}

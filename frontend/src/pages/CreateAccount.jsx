@@ -90,7 +90,8 @@ const CreateAccount = () => {
   };
 
   return (
-    <div className="fixed inset-y-3 right-3 z-[100] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-gray-700 bg-[#202124] shadow-2xl sm:inset-y-0 sm:right-0 sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0">
+    <div className="fixed inset-0 z-[99] bg-black/60" onClick={() => !loading && navigate("/")}>
+    <div className="fixed inset-y-3 right-3 z-[100] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-gray-700 bg-[#202124] shadow-2xl sm:inset-y-0 sm:right-0 sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0" onClick={(event) => event.stopPropagation()}>
       <div className="mx-auto w-full max-w-md p-6 sm:p-10">
         {/* Back Button */}
         <div className="flex items-center mb-6">
@@ -230,6 +231,7 @@ const CreateAccount = () => {
         )}
         </form>
       </div>
+    </div>
     </div>
   );
 };

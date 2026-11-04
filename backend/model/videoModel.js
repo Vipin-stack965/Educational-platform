@@ -15,16 +15,46 @@ const commentSchema = new mongoose.Schema({
   updatedAt: { type: Date }
 }, { _id: true });
 
+const videoQualitySchema = new mongoose.Schema({
+  label: { type: String, required: true },
+  src: { type: String, required: true },
+  publicId: { type: String, required: true },
+  resourceType: { type: String, default: "video" },
+}, { _id: false });
+
+const captionTrackSchema = new mongoose.Schema({
+  label: { type: String, required: true },
+  language: { type: String, required: true },
+  src: { type: String, required: true },
+  publicId: { type: String, required: true },
+  resourceType: { type: String, default: "raw" },
+}, { _id: false });
+
+const videoViewerSchema = new mongoose.Schema({
+  viewer: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  lastViewedAt: { type: Date, required: true },
+  sessionId: { type: String },
+}, { _id: false });
+
 const videoSchema = new mongoose.Schema({
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true },
   title: { type: String, required: true },
   description: { type: String, default: "" },
   videoUrl: { type: String, required: true },
+  isPaidContent: { type: Boolean, default: false, index: true },
+  mediaPublicId: { type: String, default: "" },
+  mediaResourceType: { type: String, default: "video" },
+  mediaDeliveryType: { type: String, enum: ["upload", "authenticated"], default: "upload" },
+  mediaVersion: { type: Number },
+  mediaFormat: { type: String, default: "" },
+  qualities: { type: [videoQualitySchema], default: [] },
+  captionTracks: { type: [captionTrackSchema], default: [] },
   fileSizeBytes: { type: Number, min: 0 },
   moderationCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "ModerationCase", unique: true, sparse: true },
   thumbnail: { type: String, default: "" },
   tags: [{ type: String }],
   views: { type: Number, default: 0 },
+  viewers: { type: [videoViewerSchema], default: [] },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   saveBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -32,6 +62,22 @@ const videoSchema = new mongoose.Schema({
 
   comments: [commentSchema]
 }, { timestamps: true });
+
+videoSchema.set("toJSON", {
+  transform(_document, result) {
+    if (result.isPaidContent) {
+      delete result.videoUrl;
+      result.qualities = [];
+      result.captionTracks = [];
+      delete result.mediaPublicId;
+      delete result.mediaResourceType;
+      delete result.mediaDeliveryType;
+      delete result.mediaVersion;
+      delete result.mediaFormat;
+    }
+    return result;
+  },
+});
 
 const Video = mongoose.model("Video", videoSchema);
 export default Video;

@@ -45,7 +45,6 @@ const SubscribePage = () => {
 
   return (
     <div className="px-6 py-4 min-h-screen">
-
       {/* 🔥 Subscribed Channels (avatars in circle) */}
      
       <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide pt-[30px]">
@@ -79,6 +78,7 @@ const SubscribePage = () => {
             <div key={short._id} className="flex-shrink-0">
               <ShortsCard
                 shortUrl={short.shortUrl}
+                thumbnail={short.thumbnail}
                 title={short.title}
                 channelName={short.channel?.name}
                 views={short.views}
@@ -101,6 +101,7 @@ const SubscribePage = () => {
             <VideoCard
               key={video._id}
               thumbnail={video.thumbnail}
+              videoUrl={video.videoUrl}
               duration={durations[video._id] || "0:00"}
               channelLogo={video.channel?.avatar}
               title={video.title}

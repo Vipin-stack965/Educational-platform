@@ -47,9 +47,7 @@ const SearchResults = ({ searchResults }) => {
     (!searchResults?.playlists || searchResults.playlists.length === 0);
 
   return (
-    <div className="px-6 py-4 bg-[#00000051] border-1 border-gray-800 mb-[20px]">
-      <h1 className="text-2xl font-bold mb-4">{t("Search Results :")}</h1>
-
+    <div className="mb-[20px] py-4">
       {isEmpty ? (
         <p className="text-gray-400 text-lg">{t("No results found.")}</p>
       ) : (
@@ -74,12 +72,12 @@ const SearchResults = ({ searchResults }) => {
           {/* Videos Section */}
           {searchResults.videos?.length > 0 && (
             <div>
-              <h3 className="text-xl font-bold mb-4">{t("Videos")}</h3>
               <div className="flex flex-wrap gap-6 mb-12">
                 {searchResults.videos.map((video) => (
                   <VideoCard
                     key={video._id}
                     thumbnail={video.thumbnail}
+                    videoUrl={video.videoUrl}
                     duration={durations[video._id] || "0:00"}
                     channelLogo={video.channel?.avatar}
                     title={video.title}
@@ -102,6 +100,7 @@ const SearchResults = ({ searchResults }) => {
                   <div key={short._id} className="flex-shrink-0">
                     <ShortsCard
                       shortUrl={short.shortUrl}
+                      thumbnail={short.thumbnail}
                       title={short.title}
                       channelName={short.channel?.name}
                       views={short.views}

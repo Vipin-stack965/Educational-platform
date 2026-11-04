@@ -1,5 +1,5 @@
 import Channel from "../model/channelModel.js";
-import uploadOnCloudinary, { getCloudinaryUploadErrorMessage } from "../config/cloudinary.js";
+import uploadOnCloudinary, { deleteCloudinaryAsset, getCloudinaryUploadErrorMessage } from "../config/cloudinary.js";
 import Short from "../model/shortModel.js";
 import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPublishing } from "../service/moderationEnforcement.js";
 
@@ -7,9 +7,12 @@ import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPu
 
 
 export const createShort = async (req, res) => {
+  let uploadedAssets = [];
+  let createdShort;
   try {
     const { title, description, tags, channelId } = req.body;
-    const file = req.file;
+    const file = req.files?.short?.[0];
+    const thumbnailFile = req.files?.thumbnail?.[0];
 
     if (!file) {
       return res.status(400).json({ message: "Shorts video is required" });
@@ -48,6 +51,7 @@ export const createShort = async (req, res) => {
         description: description || "",
         tags: parsedTags,
         mediaFile: file,
+        thumbnailFile,
         channelCategory: channel.category,
       });
     } catch (error) {
@@ -82,32 +86,57 @@ export const createShort = async (req, res) => {
       });
     }
 
-    const videoUpload = await uploadOnCloudinary(file.path, {
-      resourceType: "video",
-      large: true
-    });
+    const uploadResults = await Promise.allSettled([
+      uploadOnCloudinary(file.path, {
+        resourceType: "video",
+        large: true,
+        returnDetails: true,
+      }),
+      thumbnailFile
+        ? uploadOnCloudinary(thumbnailFile.path, { returnDetails: true })
+        : Promise.resolve(null),
+    ]);
+    uploadedAssets = uploadResults
+      .filter((result) => result.status === "fulfilled" && result.value)
+      .map((result) => result.value);
+    const failedUpload = uploadResults.find((result) => result.status === "rejected");
+    if (failedUpload) throw failedUpload.reason;
+    const [videoAsset, thumbnailAsset] = uploadResults.map((result) => (
+      result.status === "fulfilled" ? result.value : null
+    ));
 
     // Create short in DB
-    const newShort = await Short.create({
+    createdShort = await Short.create({
       title: title.trim(),
       description: description || "",
       tags: parsedTags,
       channel: channelId,
-      shortUrl: videoUpload,
+      shortUrl: videoAsset.secureUrl,
+      thumbnail: thumbnailAsset?.secureUrl || "",
     });
 
     // Update channel shorts list
     await Channel.findByIdAndUpdate(channelId, {
-      $push: { shorts: newShort._id },
+      $push: { shorts: createdShort._id },
     });
+    uploadedAssets = [];
 
     res.status(201).json({
       message: "Short created successfully",
-      short: newShort,
+      short: createdShort,
     });
   } catch (error) {
     console.error("Error creating short:", error);
     await removeUploadedTempFiles(req);
+    if (createdShort) {
+      await Channel.updateOne({ _id: createdShort.channel }, { $pull: { shorts: createdShort._id } });
+      await Short.deleteOne({ _id: createdShort._id });
+    }
+    await Promise.all(uploadedAssets.map((asset) =>
+      deleteCloudinaryAsset(asset).catch((cleanupError) => {
+        console.error("Unable to clean up failed Short upload asset:", cleanupError);
+      })
+    ));
     const uploadError = getCloudinaryUploadErrorMessage(error, "Short video");
     res.status(500).json({ message: `Short upload failed: ${uploadError}` });
   }

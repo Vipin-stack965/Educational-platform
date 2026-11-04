@@ -20,8 +20,11 @@ export default function CustomAlert() {
 
   return (
     isVisible && (
-      <div className="fixed inset-0 flex items-start justify-center pt-[50px]  bg-black/50 z-50">
-        <div className="bg-[#202124] text-white rounded-lg shadow-lg p-6 w-80">
+      <div
+        className="fixed inset-0 flex items-start justify-center pt-[50px] bg-black/50 z-50"
+        onClick={() => setIsVisible(false)}
+      >
+        <div className="bg-[#202124] text-white rounded-lg shadow-lg p-6 w-80" onClick={(event) => event.stopPropagation()}>
           <p className="text-sm">{message}</p>
           <div className="flex justify-end mt-4">
             <button

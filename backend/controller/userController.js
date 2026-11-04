@@ -295,6 +295,9 @@ export const toggleSubscribe = async (req, res) => {
     if (!channel) {
       return res.status(404).json({ message: "Channel not found" });
     }
+    if (channel.owner.toString() === userId.toString()) {
+      return res.status(403).json({ message: "You cannot subscribe to your own channel" });
+    }
 
     // 🔁 Check if user already subscribed
     const isSubscribed = channel?.subscribers?.includes(userId);

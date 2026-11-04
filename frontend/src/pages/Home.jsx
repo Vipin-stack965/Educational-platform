@@ -1,5 +1,5 @@
 import { t } from '../../utils/i18n.js';
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/edutube-logo.svg";
 import {
@@ -30,24 +30,48 @@ import FilterResults from "./FilterResult";
 import RecommendationContent from "./RecommendationContent";
 import UseGetSubscribedContent from "../customHooks/UseGetSubscribedContent";
 import NameAvatar from "../component/NameAvatar";
+import { getVideoCategories } from "../utils/videoCategories";
 
 function Home({ accountOverlay }) {
   const [sidebarWidth, setSidebarWidth] = useState(72);
   const sidebarOpen = sidebarWidth >= 160;
-  const [selectedItem, setSelectedItem] = useState("Home");
   const [open, setOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [input, setInput] = useState("");
   const [searchData, setSearchData] = useState(null);
+  const [searchError, setSearchError] = useState("");
   const [filterData, setFilterData] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [popUp, setPopUp] = useState(false);
   const [listening, setListening] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const recognitionRef = useRef(null);
+  const silenceTimeoutRef = useRef(null);
+  const voiceSearchTimeoutRef = useRef(null);
+  const voiceSearchSubmittedRef = useRef(false);
+  const voiceTranscriptRef = useRef("");
+  const isWatchPage = /^\/watch-video\/[^/]+$/.test(location.pathname);
+  const isActivePath = (path) => path === "/"
+    ? location.pathname === "/"
+    : location.pathname === path || location.pathname.startsWith(`${path}/`);
   const [loading, setLoading] = useState(false)
-  const [loading1, setLoading1] = useState(false)
-  const { userData, subscribeChannel } = useSelector((state) => state.user);
-  const sidebarStyle = { "--sidebar-width": "72px" };
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+  const { userData, channelData, subscribeChannel } = useSelector((state) => state.user);
+  const { allVideoData, recommendationData } = useSelector((state) => state.content);
+  const contentStyle = { "--sidebar-width": `${sidebarWidth}px` };
+  const categoryVideos = userData
+    ? [
+      ...(recommendationData?.recommendedVideos || []),
+      ...(recommendationData?.remainingVideos || []),
+    ]
+    : allVideoData || [];
+  const categories = [...new Map(
+    categoryVideos.flatMap((video) => getVideoCategories(video)
+      .map((category) => [category.toLowerCase(), category]))
+  ).values()].slice(0, 12);
   const resizeSidebar = (event) => {
     if (event.type === "pointerdown") event.currentTarget.setPointerCapture(event.pointerId);
     if (event.type === "pointerup") {
@@ -61,12 +85,19 @@ function Home({ accountOverlay }) {
     setSidebarWidth(Math.max(72, Math.min(maxWidth, event.clientX)));
   };
 
-  const categories = [
-    "Music", "Gaming", "Movies", "TV Shows", "News",
-    "Trending", "Entertainment", "Education", "Science & Tech",
-    "Travel", "Fashion", "Cooking", "Sports", "Pets",
-    "Art", "Comedy", "Vlogs"
-  ];
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousSidebarWidth = root.style.getPropertyValue("--youtube-sidebar-width");
+    const activeSidebarWidth = isWatchPage ? 0 : sidebarWidth;
+    root.style.setProperty("--youtube-sidebar-width", `${activeSidebarWidth}px`);
+    return () => {
+      if (previousSidebarWidth) {
+        root.style.setProperty("--youtube-sidebar-width", previousSidebarWidth);
+      } else {
+        root.style.removeProperty("--youtube-sidebar-width");
+      }
+    };
+  }, [isWatchPage, sidebarOpen, sidebarWidth]);
 
   // 🔊 Speech synthesis
   function speak(message) {
@@ -75,15 +106,68 @@ function Home({ accountOverlay }) {
   }
 
   // 🎤 Speech recognition
-  const recognitionRef = useRef(null);
   if (!recognitionRef.current && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = false;
-    recognitionRef.current.interimResults = false;
-    recognitionRef.current.lang = "en-US";
+    recognitionRef.current.interimResults = true;
+    const language = userData?.preferences?.language || "en";
+    recognitionRef.current.lang = language === "hi"
+      ? "hi-IN"
+      : language === "en"
+        ? "en-US"
+        : language;
 
   }
+
+  const clearSilenceTimeout = () => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleVoiceSearch = (transcript) => {
+    const query = transcript.trim();
+    if (!query || voiceSearchSubmittedRef.current) return;
+    if (voiceSearchTimeoutRef.current) clearTimeout(voiceSearchTimeoutRef.current);
+    voiceSearchTimeoutRef.current = setTimeout(() => {
+      voiceSearchTimeoutRef.current = null;
+      if (voiceSearchSubmittedRef.current) return;
+      voiceSearchSubmittedRef.current = true;
+      voiceTranscriptRef.current = "";
+      setInput(query);
+      setPopUp(false);
+      handleSearchData(query);
+    }, 350);
+  };
+
+  const stopVoiceSearch = () => {
+    clearSilenceTimeout();
+    if (recognitionRef.current && listening) recognitionRef.current.stop();
+    setListening(false);
+  };
+
+  const handleHomeNavigation = () => {
+    voiceSearchSubmittedRef.current = true;
+    voiceTranscriptRef.current = "";
+    if (voiceSearchTimeoutRef.current) clearTimeout(voiceSearchTimeoutRef.current);
+    voiceSearchTimeoutRef.current = null;
+    stopVoiceSearch();
+    setSearchData(null);
+    setSearchError("");
+    setFilterData(null);
+    setSelectedCategory("");
+    setInput("");
+    setPopUp(false);
+    navigate("/");
+  };
+
+  useEffect(() => () => {
+    clearSilenceTimeout();
+    if (voiceSearchTimeoutRef.current) clearTimeout(voiceSearchTimeoutRef.current);
+    recognitionRef.current?.abort();
+  }, []);
 
   const handleSearch = async () => {
     if (!recognitionRef.current) {
@@ -92,42 +176,82 @@ function Home({ accountOverlay }) {
     }
 
     if (listening) {
-      recognitionRef.current.stop();
-      setListening(false);
+      stopVoiceSearch();
       return;
     }
 
-    setListening(true);
-    recognitionRef.current.start();
-
-    recognitionRef.current.onresult = async (e) => {
-      const transcript = e.results[0][0].transcript.trim();
-      setInput(transcript);
-      setListening(false);
-      await handleSearchData(transcript);
+    const recognition = recognitionRef.current;
+    const startSilenceTimeout = () => {
+      clearSilenceTimeout();
+      silenceTimeoutRef.current = setTimeout(() => {
+        recognition.stop();
+        setListening(false);
+      }, 5000);
     };
 
-    recognitionRef.current.onerror = (err) => {
-      console.error("Recognition error:", err);
-      setListening(false);
+    recognition.onstart = () => {
+      setListening(true);
+      startSilenceTimeout();
+    };
 
-      if (err.error === "no-speech") {
-        setAlertMessage("No speech detected. Please try again.");
-      } else {
-        setAlertMessage("Voice search failed. Try again.");
+    recognition.onspeechstart = clearSilenceTimeout;
+    recognition.onspeechend = startSilenceTimeout;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      if (transcript) {
+        voiceTranscriptRef.current = transcript;
+        setInput(transcript);
+        setSearchError("");
+        const latestResult = event.results[event.results.length - 1];
+        if (latestResult?.isFinal) scheduleVoiceSearch(transcript);
+        startSilenceTimeout();
       }
     };
 
-    recognitionRef.current.onend = () => {
+    recognition.onerror = (err) => {
+      console.error("Recognition error:", err);
       setListening(false);
+      clearSilenceTimeout();
+
+      if (err.error !== "no-speech" && err.error !== "aborted") {
+        showCustomAlert(t("Voice search failed. Try again."));
+      }
     };
+
+    recognition.onend = () => {
+      setListening(false);
+      clearSilenceTimeout();
+      const transcript = voiceTranscriptRef.current;
+      if (transcript) {
+        scheduleVoiceSearch(transcript);
+      }
+    };
+
+    if (voiceSearchTimeoutRef.current) clearTimeout(voiceSearchTimeoutRef.current);
+    voiceSearchTimeoutRef.current = null;
+    voiceSearchSubmittedRef.current = false;
+    voiceTranscriptRef.current = "";
+    setListening(true);
+    try {
+      recognition.start();
+    } catch (error) {
+      setListening(false);
+      clearSilenceTimeout();
+      console.error("Unable to start voice search:", error);
+      showCustomAlert(t("Voice search failed. Try again."));
+    }
   };
 
   const handleSearchData = async (query) => {
     const searchQuery = query.trim();
-    if (!searchQuery || loading) return;
+    if (!searchQuery || loadingRef.current) return;
 
+    loadingRef.current = true;
     setLoading(true);
+    setSearchError("");
     try {
       const result = await axios.post(
         serverUrl + "/api/content/search",
@@ -135,7 +259,8 @@ function Home({ accountOverlay }) {
         { withCredentials: true }
       );
       setSearchData(result.data);
-      console.log(result.data);
+      setFilterData(null);
+      setSelectedCategory("");
       navigate("/")
       setInput("");
       setPopUp(false);
@@ -154,9 +279,12 @@ function Home({ accountOverlay }) {
         speak("No results found");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Search request failed:", error);
+      setSearchError(error.response?.data?.message || t("Search failed. Please try again."));
+      showCustomAlert(error.response?.data?.message || t("Search failed. Please try again."));
       setPopUp(false);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
@@ -167,56 +295,35 @@ function Home({ accountOverlay }) {
       handleSearchData(input);
     }
   };
-  const handleCategoryFilter = async (category) => {
-    setLoading1(true)
-    try {
-      const result = await axios.post(
-        serverUrl + "/api/content/filter",
-        { input: category },
-        { withCredentials: true }
-      );
 
-      const { videos = [], shorts = [], channels = [] } = result.data;
-
-      // ✅ Channels ke videos aur shorts merge karo
-      let channelVideos = [];
-      let channelShorts = [];
-      channels.forEach((ch) => {
-        if (ch.videos?.length) channelVideos.push(...ch.videos);
-        if (ch.shorts?.length) channelShorts.push(...ch.shorts);
-      });
-
-      setFilterData({
-        ...result.data,
-        videos: [...videos, ...channelVideos],
-        shorts: [...shorts, ...channelShorts],
-      });
-      setLoading1(false)
-      navigate("/")
-
-      console.log("Category filter merged:", {
-        ...result.data,
-        videos: [...videos, ...channelVideos],
-        shorts: [...shorts, ...channelShorts],
-      });
-
-
-
-      if (
-        videos.length > 0 ||
-        shorts.length > 0 ||
-        channelVideos.length > 0 ||
-        channelShorts.length > 0
-      ) {
-        speak(`Here are some ${category} videos and shorts for you`);
-      } else {
-        speak("No results found");
-      }
-    } catch (error) {
-      console.error("Category filter error:", error);
-      setLoading1(false)
-
+  const navigateFromMenu = (path) => {
+    setMobileMenuOpen(false);
+    setOpen(false);
+    if (path === "/") {
+      handleHomeNavigation();
+      return;
     }
+    navigate(path);
+  };
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
+  const handleCategoryFilter = (category) => {
+    const videos = categoryVideos.filter((video) => getVideoCategories(video)
+      .some((videoCategory) => videoCategory.toLowerCase() === category.toLowerCase()));
+    setFilterData({ videos, shorts: [] });
+    setSelectedCategory(category);
   };
 
   UseGetSubscribedContent()
@@ -226,8 +333,8 @@ function Home({ accountOverlay }) {
     <div className="bg-[#0f0f0f] text-white min-h-screen relative">
       {/* 🎤 Voice Search Popup */}
       {popUp && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-[#1f1f1f]/90 backdrop-blur-md rounded-2xl shadow-2xl w-[90%] max-w-md min-h-[400px] sm:min-h-[480px] p-8 flex flex-col items-center justify-between gap-8 relative border border-gray-700 transition-all duration-300">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 animate-fadeIn" onClick={() => setPopUp(false)}>
+          <div className="bg-[#1f1f1f]/90 backdrop-blur-md rounded-2xl shadow-2xl w-[90%] max-w-md min-h-[400px] sm:min-h-[480px] p-8 flex flex-col items-center justify-between gap-8 relative border border-gray-700 transition-all duration-300" onClick={(event) => event.stopPropagation()}>
 
             {/* Close button */}
             <button
@@ -245,31 +352,6 @@ function Home({ accountOverlay }) {
                 <h1 className="text-lg sm:text-xl font-medium text-gray-300">{t("\n                  Speak or type your query\n                ")}</h1>
               )}
 
-              {/* Show recognized text */}
-              {input && (
-                <span className="text-center text-lg sm:text-xl text-gray-200 px-4 py-2 rounded-lg bg-[#2a2a2a]/60">
-                  {input}
-                </span>
-              )}
-
-              {/* Input + Search button (mobile only) */}
-              <div className="flex w-full gap-2 sm:hidden mt-4">
-                <input
-                  type="text"
-                  placeholder={t("Type your search...")}
-                  className="flex-1 px-4 py-2 rounded-full bg-[#2a2a2a] text-white outline-none border border-gray-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-500 transition"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                />
-                <button
-                  className="bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-full text-white font-semibold shadow-md transition disabled:opacity-50"
-                  disabled={loading}
-                  onClick={() => handleSearchData(input)}
-                >
-                  {loading ? <ClipLoader size={18} color="white" /> : <FaSearch />}
-                </button>
-              </div>
             </div>
 
             {/* Mic button at bottom */}
@@ -299,16 +381,30 @@ function Home({ accountOverlay }) {
           {/* Left */}
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setSidebarWidth((width) => width >= 160 ? 72 : 240)}
-              className="text-xl bg-[#272727] p-2 rounded-full md:inline hidden"
-              aria-label={sidebarOpen ? t("Collapse sidebar") : t("Expand sidebar")}
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setMobileMenuOpen((isOpen) => !isOpen);
+                  return;
+                }
+                setSidebarWidth((width) => width >= 160 ? 72 : 240);
+              }}
+              className="text-xl bg-[#272727] p-2 rounded-full"
+              aria-label={window.innerWidth < 768
+                ? mobileMenuOpen ? t("Close navigation menu") : t("Open navigation menu")
+                : sidebarOpen ? t("Collapse sidebar") : t("Expand sidebar")}
+              aria-expanded={window.innerWidth < 768 ? mobileMenuOpen : sidebarOpen}
             >
-              <FaBars />
+              {mobileMenuOpen ? <FaTimes /> : <FaBars />}
             </button>
-            <div className="flex items-center gap-[5px]">
+            <button
+              type="button"
+              onClick={handleHomeNavigation}
+              aria-label={t("Go to home")}
+              className="flex items-center gap-[5px] rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+            >
               <img src={logo} alt={t("Logo")} className="w-[30px]" />
               <span className="text-white font-bold text-xl tracking-tight font-roboto">{t("\n                EduTube\n              ")}</span>
-            </div>
+            </button>
           </div>
 
           {/* Search */}
@@ -366,31 +462,86 @@ function Home({ accountOverlay }) {
                 </button>
               </>
             )}
-            <FaSearch className="text-lg md:hidden flex " onClick={() => setPopUp(true)} />
+            <button type="button" className="text-lg md:hidden flex" aria-label={t("Search")} onClick={() => setPopUp(true)}>
+              <FaSearch />
+            </button>
           </div>
         </div>
       </header>
 
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 top-[60px] z-[70] md:hidden" role="presentation">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full bg-black/60"
+            aria-label={t("Close navigation menu")}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="youtube-sidebar relative z-10 h-full w-[min(82vw,280px)] overflow-y-auto bg-[#0f0f0f] px-3 py-4 shadow-xl">
+            <nav className="space-y-1">
+              <SidebarItem icon={<FaHome />} text="Home" open selected={isActivePath("/")} onClick={() => navigateFromMenu("/")} />
+              <SidebarItem icon={<SiYoutubeshorts />} text="Shorts" open selected={isActivePath("/shorts")} onClick={() => navigateFromMenu("/shorts")} />
+              <SidebarItem icon={<MdOutlineSubscriptions />} text="Subscriptions" open selected={isActivePath("/subscribepage")} onClick={() => navigateFromMenu("/subscribepage")} />
+            </nav>
+            <hr className="my-3 border-gray-800" />
+            <p className="px-2 text-sm text-gray-400">{t("You")}</p>
+            <nav className="mt-1 space-y-1">
+              {channelData && !userData?.isAgentReview && <SidebarItem icon={<GoVideo />} text="Your videos" open selected={isActivePath("/ptstudio/content")} onClick={() => navigateFromMenu("/ptstudio/content")} />}
+              <SidebarItem icon={<FaHistory />} text="History" open selected={isActivePath("/history")} onClick={() => navigateFromMenu("/history")} />
+              <SidebarItem icon={<FaList />} text="Playlists" open selected={isActivePath("/saveplaylist")} onClick={() => navigateFromMenu("/saveplaylist")} />
+              <SidebarItem icon={<GoVideo />} text="Save videos" open selected={isActivePath("/savevideos")} onClick={() => navigateFromMenu("/savevideos")} />
+              {userData && !userData.isGuest && <SidebarItem icon={<FaDownload />} text="Downloads" open selected={isActivePath("/downloads")} onClick={() => navigateFromMenu("/downloads")} />}
+              <SidebarItem icon={<FaThumbsUp />} text="Liked videos" open selected={isActivePath("/likedvideos")} onClick={() => navigateFromMenu("/likedvideos")} />
+              {!userData?.isAgentReview && (
+                <SidebarItem icon={<NameAvatar src={userData?.photoUrl} name={userData?.username || userData?.name} className="h-6 w-6 border border-gray-700 text-[10px]" />} text="Your profile" open selected={isActivePath("/mobileprofile")} onClick={() => navigateFromMenu("/mobileprofile")} />
+              )}
+              {!userData?.isAgentReview && (
+                <SidebarItem icon={<IoIosAddCircle />} text="Create" open selected={isActivePath("/createpage")} onClick={() => navigateFromMenu("/createpage")} />
+              )}
+            </nav>
+            {subscribeChannel?.length > 0 && (
+              <>
+                <hr className="my-3 border-gray-800" />
+                <p className="px-2 text-sm text-gray-400">{t("Subscriptions")}</p>
+                <nav className="mt-1 space-y-1">
+                  {subscribeChannel.map((item) => (
+                    <SidebarItem
+                      key={item._id}
+                      icon={<NameAvatar src={item.avatar} name={item.name} alt={item.name} className="h-6 w-6 border border-gray-700 text-[10px]" />}
+                      text={item.name}
+                      open
+                      selected={location.pathname === `/channelpage/${item._id}`}
+                      onClick={() => navigateFromMenu(`/channelpage/${item._id}`)}
+                    />
+                  ))}
+                </nav>
+              </>
+            )}
+          </aside>
+        </div>
+      )}
+
       {/* ---------- SIDEBAR ---------- */}
       <aside
         style={{ width: `${sidebarWidth}px` }}
-        className="youtube-sidebar fixed top-[60px] bottom-0 z-40 hidden flex-col overflow-y-auto bg-[#0f0f0f] shadow-xl transition-[width] duration-150 md:flex"
+        className={`youtube-sidebar fixed top-[60px] bottom-0 z-40 hidden flex-col overflow-y-auto bg-[#0f0f0f] shadow-xl transition-[width] duration-150 md:flex ${isWatchPage && !sidebarOpen ? "!hidden" : ""}`}
       >
         <nav className="space-y-1 mt-3">
-          <SidebarItem icon={<FaHome />} text="Home" open={sidebarOpen} selected={selectedItem === "Home"} onClick={() => { setSelectedItem("Home"); navigate("/"); }} />
-          <SidebarItem icon={<SiYoutubeshorts />} text="Shorts" open={sidebarOpen} selected={selectedItem === "Shorts"} onClick={() => { setSelectedItem("Shorts"); navigate("/shorts"); }} />
-          <SidebarItem icon={<MdOutlineSubscriptions />} text="Subscriptions" open={sidebarOpen} selected={selectedItem === "Subscriptions"} onClick={() => { setSelectedItem("Subscriptions"); navigate("/subscribepage"); }} />
+          <SidebarItem icon={<FaHome />} text="Home" open={sidebarOpen} selected={isActivePath("/")} onClick={() => navigateFromMenu("/")} />
+          <SidebarItem icon={<SiYoutubeshorts />} text="Shorts" open={sidebarOpen} selected={isActivePath("/shorts")} onClick={() => navigateFromMenu("/shorts")} />
+          <SidebarItem icon={<MdOutlineSubscriptions />} text="Subscriptions" open={sidebarOpen} selected={isActivePath("/subscribepage")} onClick={() => navigateFromMenu("/subscribepage")} />
         </nav>
 
         <hr className="border-gray-800 my-3" />
 
         {sidebarOpen && <p className="text-sm text-gray-400 px-2">{t("You")}</p>}
         <nav className="space-y-1 mt-1">
-          <SidebarItem icon={<FaHistory />} text="History" open={sidebarOpen} selected={selectedItem === "History"} onClick={() => { setSelectedItem("History"); navigate("/history"); }} />
-          <SidebarItem icon={<FaList />} text="Playlists" open={sidebarOpen} selected={selectedItem === "Playlists"} onClick={() => { setSelectedItem("Playlists"); navigate("/saveplaylist"); }} />
-          <SidebarItem icon={<GoVideo />} text="Save videos" open={sidebarOpen} selected={selectedItem === "Save videos"} onClick={() => { setSelectedItem("Save videos"); navigate("/savevideos"); }} />
-          {userData && !userData.isGuest && <SidebarItem icon={<FaDownload />} text="Downloads" open={sidebarOpen} selected={location.pathname === "/downloads"} onClick={() => { setSelectedItem("Downloads"); navigate("/downloads"); }} />}
-          <SidebarItem icon={<FaThumbsUp />} text="Liked videos" open={sidebarOpen} selected={selectedItem === "Liked videos"} onClick={() => { setSelectedItem("Liked videos"); navigate("/likedvideos"); }} />
+          {channelData && !userData?.isAgentReview && <SidebarItem icon={<GoVideo />} text="Your videos" open={sidebarOpen} selected={isActivePath("/ptstudio/content")} onClick={() => navigateFromMenu("/ptstudio/content")} />}
+          <SidebarItem icon={<FaHistory />} text="History" open={sidebarOpen} selected={isActivePath("/history")} onClick={() => navigateFromMenu("/history")} />
+          <SidebarItem icon={<FaList />} text="Playlists" open={sidebarOpen} selected={isActivePath("/saveplaylist")} onClick={() => navigateFromMenu("/saveplaylist")} />
+          <SidebarItem icon={<GoVideo />} text="Save videos" open={sidebarOpen} selected={isActivePath("/savevideos")} onClick={() => navigateFromMenu("/savevideos")} />
+          {userData && !userData.isGuest && <SidebarItem icon={<FaDownload />} text="Downloads" open={sidebarOpen} selected={isActivePath("/downloads")} onClick={() => navigateFromMenu("/downloads")} />}
+          <SidebarItem icon={<FaThumbsUp />} text="Liked videos" open={sidebarOpen} selected={isActivePath("/likedvideos")} onClick={() => navigateFromMenu("/likedvideos")} />
         </nav>
 
         <hr className="border-gray-800 my-3" />
@@ -401,11 +552,10 @@ function Home({ accountOverlay }) {
             <button
               key={index}
               onClick={() => {
-                setSelectedItem(item._id);
-                navigate(`/channelpage/${item._id}`);
+                navigateFromMenu(`/channelpage/${item._id}`);
               }}
               className={`sidebar-item flex items-center ${sidebarOpen ? "gap-3 justify-start" : "justify-center"
-                } w-full text-left cursor-pointer p-2 rounded-lg transition ${selectedItem === item._id
+                } w-full text-left cursor-pointer p-2 rounded-lg transition ${location.pathname === `/channelpage/${item._id}`
                   ? "sidebar-item-selected bg-[#272727]"
                   : "hover:bg-[#272727]"
                 }`}
@@ -431,7 +581,7 @@ function Home({ accountOverlay }) {
         aria-valuenow={sidebarWidth}
         tabIndex={0}
         style={{ left: `${sidebarWidth - 4}px` }}
-        className="fixed bottom-0 top-[60px] z-40 hidden w-2 cursor-col-resize touch-none bg-transparent outline-none md:flex"
+        className={`fixed bottom-0 top-[60px] z-40 hidden w-2 cursor-col-resize touch-none bg-transparent outline-none md:flex ${isWatchPage && !sidebarOpen ? "!hidden" : ""}`}
         onPointerDown={resizeSidebar}
         onPointerMove={resizeSidebar}
         onPointerUp={resizeSidebar}
@@ -446,7 +596,7 @@ function Home({ accountOverlay }) {
 
       {/* ---------- MAIN CONTENT ---------- */}
       <main
-        style={sidebarStyle}
+        style={contentStyle}
         className="flex flex-col overflow-y-auto p-4 pb-16 transition-[margin] duration-150 md:ml-[var(--sidebar-width)]"
       >
         {userData?.isAgentReview && (
@@ -473,16 +623,24 @@ function Home({ accountOverlay }) {
           <>
             {/* Categories */}
             <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pt-2 mt-[60px]">
-              {categories.map((cat, idx) => (
+              <button
+                type="button"
+                className={`whitespace-nowrap px-4 py-1 rounded-lg text-sm ${!selectedCategory ? "bg-white text-black" : "bg-[#272727] hover:bg-gray-700"}`}
+                onClick={() => {
+                  setFilterData(null);
+                  setSelectedCategory("");
+                }}
+              >
+                {t("All")}
+              </button>
+              {categories.map((cat) => (
                 <button
-                  key={idx}
-                  className="whitespace-nowrap bg-[#272727] px-4 py-1 rounded-lg text-sm hover:bg-gray-700" disabled={loading1}
-                  onClick={() => handleCategoryFilter(cat)}  // 👈 yaha call hoga 
+                  key={cat.toLowerCase()}
+                  className={`whitespace-nowrap px-4 py-1 rounded-lg text-sm ${selectedCategory === cat ? "bg-white text-black" : "bg-[#272727] hover:bg-gray-700"}`}
+                  onClick={() => handleCategoryFilter(cat)}
                 >
-                  {t(cat)}
-
+                  {cat}
                 </button>
-
               ))}
 
             </div>
@@ -490,11 +648,11 @@ function Home({ accountOverlay }) {
 
             {/* Search + All Videos */}
             <div className="mt-6">
-              <div className="w-full items-center flex justify-center ">{loading1 ? <ClipLoader size={50} color="white" /> : ""}</div>
-              {searchData && <SearchResults searchResults={searchData} />}
-              {filterData && <FilterResults filterResults={filterData} />}
-
-              {userData ? (
+              {filterData ? (
+                <FilterResults filterResults={filterData} />
+              ) : searchData ? (
+                <SearchResults searchResults={searchData} />
+              ) : userData ? (
                 <RecommendationContent />
               ) : (
                 <>
@@ -503,6 +661,7 @@ function Home({ accountOverlay }) {
                 </>
               )}
             </div>
+            {searchError && <p role="alert" className="mt-3 text-sm text-red-300">{searchError}</p>}
           </>
         )}
 
@@ -513,16 +672,17 @@ function Home({ accountOverlay }) {
       </main>
 
       {/* ---------- BOTTOM NAV (MOBILE) ---------- */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-gray-800 flex justify-around py-2 z-10">
-        <MobileNavItem onClick={() => navigate("/")} icon={<FaHome />} text="Home" />
-        <MobileNavItem onClick={() => navigate("/shorts")} icon={<SiYoutubeshorts />} text="Shorts" />
-        {!userData?.isAgentReview && <MobileNavItem onClick={() => navigate("/createpage")} icon={<IoIosAddCircle className="fill-gray-500 text-4xl w-9 h-9" />} />}
-        <MobileNavItem onClick={() => navigate("/subscribepage")} icon={<MdOutlineSubscriptions />} text="Subscriptions" />
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-gray-800 flex justify-around pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-40">
+        <MobileNavItem onClick={handleHomeNavigation} icon={<FaHome />} text="Home" active={isActivePath("/")} />
+        <MobileNavItem onClick={() => navigate("/shorts")} icon={<SiYoutubeshorts />} text="Shorts" active={isActivePath("/shorts")} />
+        {!userData?.isAgentReview && <MobileNavItem onClick={() => navigate("/createpage")} icon={<IoIosAddCircle className="fill-gray-500 text-4xl w-9 h-9" />} text="Create" active={isActivePath("/createpage")} />}
+        <MobileNavItem onClick={() => navigate("/subscribepage")} icon={<MdOutlineSubscriptions />} text="Subscriptions" active={isActivePath("/subscribepage")} />
         {!userData?.isAgentReview && (
           <MobileNavItem
             onClick={() => navigate("/mobileprofile")}
             icon={<NameAvatar src={userData?.photoUrl} name={userData?.username || userData?.name} alt={t("Profile")} className="h-8 w-8 border border-gray-700 text-xs" />}
             text="You"
+            active={isActivePath("/mobileprofile")}
           />
         )}
       </nav>
@@ -536,6 +696,7 @@ function SidebarItem({ icon, text, open, selected, onClick }) {
     <button
       onClick={onClick}
       title={!open ? t(text) : undefined}
+      aria-current={selected ? "page" : undefined}
       className={`sidebar-item flex w-full rounded-lg p-2 transition-colors ${open ? "items-center justify-start gap-4" : "flex-col items-center justify-center gap-1.5 py-3"} ${selected ? "sidebar-item-selected bg-[#272727]" : "hover:bg-[#272727]"}`}
     >
       <span className={open ? "text-lg" : "text-xl"}>{icon}</span>
@@ -548,6 +709,7 @@ function MobileNavItem({ icon, text, onClick, active }) {
   return (
     <button
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-3 py-2 rounded-lg transition-all duration-300 ${active ? "text-white" : "text-gray-400"} hover:scale-105`}
     >
       <span className="text-xl sm:text-2xl">{icon}</span>

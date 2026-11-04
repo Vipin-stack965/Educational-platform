@@ -7,75 +7,59 @@ import dotenv from "dotenv";
 dotenv.config();
 export const searchWithAi = async (req, res) => {
   try {
-    const { input } = req.body;
+    const input = typeof req.body?.input === "string" ? req.body.input.trim() : "";
     if (!input) {
       return res.status(400).json({ message: "Search query is required" });
     }
+    if (input.length > 200) {
+      return res.status(400).json({ message: "Search query must be 200 characters or fewer" });
+    }
 
-    // ✅ Step 1: AI se keyword nikalo (autocorrect + simplified)
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
-
-    const prompt = `You are a search assistant for a video streaming platform. 
-The user query is: "${input}"
-
-🎯 Your job:
-- If query has typos, correct them.
-- If query has multiple words, break them into meaningful keywords.
-- Return only the corrected word(s), comma-separated.
-- Do not explain, only return keyword(s).`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-    });
-
-    let keyword = (response.text || input).trim().replace(/[\n\r]+/g, "");
-
-    // ✅ Step 2: Split keywords for OR search
-    const searchWords = keyword.split(",").map((w) => w.trim()).filter(Boolean);
-
-    // ✅ Helper: create OR regex query
-    const buildRegexQuery = (fields) => {
-      return {
-        $or: searchWords.map((word) => ({
+    const keyword = input;
+    const searchWords = [...new Set(
+      input.split(/\s+/).map((word) => word.trim()).filter(Boolean)
+    )].slice(0, 12);
+    const buildTextQuery = (fields) => ({
+      $and: searchWords.map((word) => {
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return {
           $or: fields.map((field) => ({
-            [field]: { $regex: word, $options: "i" },
+            [field]: { $regex: escapedWord, $options: "i" },
           })),
-        })),
-      };
-    };
+        };
+      }),
+    });
 
-    // 1️⃣ Channels
-    const matchedChannels = await Channel.find(
-      buildRegexQuery(["name"])
-    ).select("_id name avatar");
+    const matchedChannels = await Channel.find(buildTextQuery(["name"]))
+      .select("_id name avatar")
+      .limit(50);
 
     const channelIds = matchedChannels.map((c) => c._id);
 
-    // 2️⃣ Videos
     const videos = await Video.find({
       $or: [
-        buildRegexQuery(["title", "description", "tags"]),
+        buildTextQuery(["title", "description", "tags"]),
         { channel: { $in: channelIds } },
       ],
-    }).populate("channel comments.author comments.replies.author");
+    })
+      .populate("channel comments.author comments.replies.author")
+      .sort({ views: -1, createdAt: -1 })
+      .limit(100);
 
-    // 3️⃣ Shorts
     const shorts = await Short.find({
       $or: [
-        buildRegexQuery(["title", "tags"]),
+        buildTextQuery(["title", "tags"]),
         { channel: { $in: channelIds } },
       ],
     })
       .populate("channel", "name avatar")
-      .populate("likes", "username photoUrl");
+      .populate("likes", "username photoUrl")
+      .sort({ views: -1, createdAt: -1 })
+      .limit(100);
 
-    // 4️⃣ Playlists
     const playlists = await Playlist.find({
       $or: [
-        buildRegexQuery(["title", "description"]),
+        buildTextQuery(["title", "description"]),
         { channel: { $in: channelIds } },
       ],
     })
@@ -86,11 +70,11 @@ The user query is: "${input}"
       });
 
     return res.status(200).json({
-      keyword, // final corrected keyword used
+      keyword,
       channels: matchedChannels,
       videos,
       shorts,
-      playlists,
+      playlists: playlists.slice(0, 100),
     });
   } catch (error) {
     console.error("Search error:", error);

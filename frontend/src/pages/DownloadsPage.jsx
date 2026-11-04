@@ -1,7 +1,7 @@
 import { t } from "../../utils/i18n.js";
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import { FaDownload, FaPlay, FaTimes } from "react-icons/fa";
+import { FaPlay, FaTimes } from "react-icons/fa";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { serverUrl } from "../config";
@@ -54,14 +54,14 @@ const DownloadsPage = () => {
       localRecords = await getOfflineDownloads(userId);
       setDownloads(localRecords.map(toOfflineItem));
     } catch (storageError) {
-      console.error("Unable to load videos stored on this device:", storageError);
-      setError(t("Unable to read videos downloaded on this device."));
+      console.error("Unable to load videos saved in EduTube Downloads:", storageError);
+      setError(t("Unable to read EduTube Downloads."));
     }
 
     if (!navigator.onLine) {
       setOnline(false);
       if (!localRecords.length) {
-        setError(t("Connect to the internet to view your account Downloads."));
+        setError(t("Connect to the internet to view account Downloads. Videos saved in this browser remain available offline."));
       }
       setLoading(false);
       return;
@@ -69,11 +69,24 @@ const DownloadsPage = () => {
 
     setOnline(true);
     try {
-      const [videoResponse, shortResponse, queuedRemovals] = await Promise.all([
+      const [videoResult, shortResult, removalsResult] = await Promise.allSettled([
         axios.get(`${serverUrl}/api/content/downloads`, { withCredentials: true }),
         axios.get(`${serverUrl}/api/content/downloads/shorts`, { withCredentials: true }),
         getQueuedDownloadRemovals(userId),
       ]);
+
+      const videoResponse = videoResult.status === "fulfilled" ? videoResult.value : null;
+      const shortResponse = shortResult.status === "fulfilled" ? shortResult.value : null;
+      const queuedRemovals = removalsResult.status === "fulfilled" ? removalsResult.value : [];
+      if (videoResult.status === "rejected") {
+        console.error("Unable to fetch account video downloads:", videoResult.reason);
+      }
+      if (shortResult.status === "rejected") {
+        console.error("Unable to fetch account Short downloads:", shortResult.reason);
+      }
+      if (removalsResult.status === "rejected") {
+        console.error("Unable to read queued download removals:", removalsResult.reason);
+      }
 
       const pendingIds = new Set(queuedRemovals.map((record) => record.contentId));
       await Promise.all(queuedRemovals.map(async (record) => {
@@ -86,7 +99,9 @@ const DownloadsPage = () => {
       }));
 
       const localById = new Map(localRecords.map((record) => [record.contentId, record]));
-      const videos = videoResponse.data
+      const accountVideos = Array.isArray(videoResponse?.data) ? videoResponse.data : [];
+      const accountShorts = Array.isArray(shortResponse?.data) ? shortResponse.data : [];
+      const videos = accountVideos
         .filter((video) => !pendingIds.has(video._id))
         .map((video) => ({
           ...video,
@@ -97,15 +112,19 @@ const DownloadsPage = () => {
       const localOnlyVideos = localRecords
         .filter((record) => !pendingIds.has(record.contentId) && !accountVideoIds.has(record.contentId))
         .map(toOfflineItem);
-      const shorts = shortResponse.data.map((short) => ({ ...short, downloadType: "short" }));
+      const shorts = accountShorts.map((short) => ({ ...short, downloadType: "short" }));
 
-      setDownloads([...videos, ...localOnlyVideos, ...shorts]);
-      setError("");
-    } catch (requestError) {
-      console.error("Unable to fetch account downloads:", requestError);
-      if (!localRecords.length) {
-        setError(requestError.response?.data?.message || t("Unable to load your account Downloads."));
+      const mergedDownloads = [...videos, ...localOnlyVideos, ...shorts];
+      setDownloads(mergedDownloads);
+      if (videoResult.status === "rejected" && shortResult.status === "rejected" && !localRecords.length) {
+        setError(videoResult.reason.response?.data?.message || t("Unable to load your account Downloads."));
+      } else {
+        setError("");
       }
+    } catch (requestError) {
+      console.error("Unable to merge EduTube Downloads:", requestError);
+      setDownloads(localRecords.map(toOfflineItem));
+      setError(localRecords.length ? "" : requestError.response?.data?.message || t("Unable to load your account Downloads."));
     } finally {
       setLoading(false);
     }
@@ -142,6 +161,11 @@ const DownloadsPage = () => {
   };
 
   const downloadToDevice = async (item) => {
+    if (!navigator.onLine) {
+      showCustomAlert(t("Connect to the internet to add a video to Downloads. Videos already saved in this browser can still be played offline."));
+      return;
+    }
+
     const downloadId = `video:${item._id}`;
     setDownloadProgress((current) => ({ ...current, [downloadId]: 0 }));
     try {
@@ -166,7 +190,7 @@ const DownloadsPage = () => {
           ? { ...download, offlineDownload: offlineRecord }
           : download
       )));
-      showCustomAlert(t("Video downloaded to this device."));
+      showCustomAlert(t("Video added to EduTube Downloads and is ready for offline playback in this browser."));
     } catch (downloadError) {
       console.error("Unable to download video for offline playback:", downloadError);
       showCustomAlert(downloadError.message || t("Unable to download this video."));
@@ -209,8 +233,7 @@ const DownloadsPage = () => {
 
   return (
     <main className="mt-[50px] min-h-screen px-5 py-8 text-white lg:mt-5">
-      <h1 className="mb-2 flex items-center gap-3 text-2xl font-bold">
-        <FaDownload aria-hidden="true" />
+      <h1 className="mb-2 text-2xl font-bold">
         {t("Downloads")}
       </h1>
 
@@ -232,9 +255,11 @@ const DownloadsPage = () => {
       )}
 
       {!online && !downloads.length && !loading ? (
-        <p role="alert" className="text-gray-400">{error || t("No videos are downloaded on this device yet.")}</p>
+        <p role="alert" className="text-gray-400">{error || t("No videos are saved in EduTube Downloads yet.")}</p>
       ) : loading ? (
-        <p className="text-gray-400">{t("Loading downloads...")}</p>
+        <div role="status" aria-label={t("Loading downloads")} className="h-1 w-full max-w-sm overflow-hidden rounded-full bg-gray-700">
+          <div className="h-full w-1/3 animate-pulse bg-red-500" />
+        </div>
       ) : error && !downloads.length ? (
         <p role="alert" className="text-red-300">{error}</p>
       ) : downloads.length ? (
@@ -289,17 +314,32 @@ const DownloadsPage = () => {
                     </p>
                   </div>
                   {progress !== undefined && (
-                    <p className="mt-1 text-xs text-gray-400">
-                      {t("Downloading...")}{progress === null ? "" : ` ${progress}%`}
-                    </p>
+                    <div className="mt-2 max-w-xs">
+                      <p className="mb-1 text-xs text-gray-400">
+                        {t("Downloading...")}{progress === null ? "" : ` ${progress}%`}
+                      </p>
+                      <div
+                        role="progressbar"
+                        aria-label={t("Video download progress")}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress ?? undefined}
+                        className="h-1 overflow-hidden rounded-full bg-gray-600"
+                      >
+                        <div
+                          className={`h-full bg-red-500 ${progress === null ? "w-1/3 animate-pulse" : ""}`}
+                          style={progress === null ? undefined : { width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {!isShort && !item.offlineDownload && item.videoUrl && (
                     <button
                       type="button"
-                      aria-label={t("Download to this device")}
-                      title={t("Download to this device")}
+                      aria-label={t("Download video")}
+                      title={t("Download video")}
                       disabled={progress !== undefined}
                       onClick={() => downloadToDevice(item)}
                       className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#272727] disabled:opacity-50"

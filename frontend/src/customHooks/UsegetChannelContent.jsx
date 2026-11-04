@@ -6,25 +6,24 @@ import axios from 'axios';
 
 const UsegetChannelContent = () => {
   const dispatch = useDispatch()
-  const {channelData} = useSelector(state=>state.user)
+  const channelId = useSelector(state => state.user.channelData?._id)
   useEffect(() => {
       const fetchChannelVideos = async () => {
-        if (!channelData?._id) return;
+        if (!channelId) return;
         
         try {
           const res = await axios.post(
             `${serverUrl}/api/content/get-videos`,
-            { channelId: channelData._id },
+            { channelId },
             { withCredentials: true }
           );
           dispatch(setVideoData(res.data.videos || []));
-          console.log(res.data.videos)
         } catch (err) {
-          console.error(err);
+          console.error("Unable to load channel videos:", err);
         }
       };
       fetchChannelVideos();
-    }, [channelData]);
+    }, [channelId, dispatch]);
   
 }
 

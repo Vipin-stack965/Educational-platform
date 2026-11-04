@@ -37,3 +37,104 @@ For separately created Render services, set the frontend's `VITE_SERVER_URL` to 
 ## Direct Node deployment
 
 Deploy `backend/` with Node.js 22 or newer, run `npm ci --omit=dev` and `npm start`, and set the variables listed in `backend/.env.example` in the hosting provider's secret/environment settings. Deploy `frontend/` as a static Vite site with `npm ci` and `npm run build`; set `VITE_SERVER_URL` and `VITE_FIREBASE_APIKEY` at build time, then publish `frontend/dist`. Configure backend `CORS_ORIGIN` to the exact frontend origin. Both deployments need HTTPS for production authentication cookies.
+
+### Agent Panel analytics and EduTube offers
+
+The Agent Panel administrator can view registered users, EduTube accounts or
+guest sessions active during the last five minutes, channels, uploaded videos per channel,
+country counts, and gross paid revenue. Channel charts include only
+channel-attributed transactions. Account-wide offer sales appear in platform
+totals and are not assigned to a channel; no creator payout split is configured.
+The country count reads the configured `EDUTUBE_COUNTRY_HEADER` request header
+(default `cf-ipcountry`). Configure the trusted CDN/reverse proxy to overwrite
+this header and prevent direct access to the origin; otherwise missing or
+untrusted country data must not be used for reporting. Country is stored on the
+first signed-in activity heartbeat, which the website sends once a minute.
+
+Admins create account-wide or selected-channel ad-free offers in the Agent
+Panel. One-time offers have an admin-selected validity of 1–3,650 days;
+subscriptions renew monthly or yearly and can be cancelled by the buyer.
+The panel supports Individual prepaid/monthly and Student monthly plan labels.
+All EduTube users are eligible for Student pricing; Family and Two-person plans
+are unavailable and excluded from the public catalog. Plan purchases grant
+entitlement only to the purchasing EduTube account. The analytics dashboard
+supports 7-, 30-, 90-, 365-day,
+and all-time revenue/new-user reporting, plus interactive channel, country,
+currency, and metric filters.
+An active account offer covers all channels; a channel offer covers videos in
+that channel. These entitlements do not grant access to paid/protected videos
+and are never attached to individual videos. Existing completed purchases and
+channel memberships remain in user history, but the public catalog now shows
+only Admin-created offers.
+
+EduTube currently has no ad-serving/provider integration. The verified offer
+flow records the account/channel entitlement and its expiration; future ad
+placements must call the authenticated
+`GET /api/payments/ad-free-access?channelId=<id>` endpoint and skip ads only
+when it returns `entitled: true`. Once the entitlement expires, the endpoint
+returns false and the ad provider can resume normal delivery.
+
+The panel backend and website backend must have the same private
+`AGENT_PANEL_INTEGRATION_SECRET`; it remains backend-only. The Agent Panel
+proxies analytics and offer-management requests through authenticated private
+EduTube integration endpoints.
+
+### Razorpay memberships and purchases
+
+The backend processes Admin-created one-time ad-free purchases and monthly/
+yearly ad-free memberships through the **platform's** Razorpay merchant
+account. Checkout requests only send an offer id, and the backend derives the
+amount, currency, scope, and validity from the database. No creator split or
+payout is configured.
+
+Before enabling checkout:
+
+1. Activate the platform's Razorpay merchant account and enable the desired
+   currencies there. Set backend `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
+   `RAZORPAY_WEBHOOK_SECRET`, and `RAZORPAY_ALLOWED_CURRENCIES` (comma-separated
+   ISO currency codes) in the deployment secret manager. The default currency
+   allowlist is `INR`. Only configure currencies actually enabled on the
+   merchant account; Razorpay may impose additional account and currency
+   eligibility requirements.
+2. Register a Razorpay webhook at
+   `https://<backend-host>/api/payments/webhook`, using the same webhook secret.
+   Subscribe at minimum to `payment.captured`, `subscription.activated`,
+   `subscription.charged`, `subscription.cancelled`, `subscription.completed`,
+   and `subscription.halted`. The webhook secret is separate from the API key
+   secret. The backend verifies the HMAC over the raw request body and
+   de-duplicates Razorpay event ids.
+3. Keep the key secret and webhook secret server-side. The API exposes only the
+   public key id needed by Razorpay Checkout. Checkout and webhook credentials
+   are not set on the frontend.
+
+Payment verification checks Razorpay signatures and then fetches the payment
+and order/subscription from Razorpay before recording paid status or membership
+entitlement. Memberships are created with up to 100 billing cycles. Customers
+can schedule cancellation at the end of their current billing period in the
+membership page.
+
+**Legacy media limitation:** videos uploaded before choosing protected paid
+content remain public Cloudinary assets. Purchases do not retroactively revoke
+or protect their existing public URLs. Do not publish those existing uploads
+as paid protected media.
+
+**Protected paid video uploads:** the existing upload option and video-level
+entitlement checks remain available for existing purchases. New admin-created
+ad-free offers do not grant paid-video access and are never attached to a
+specific video. The current Memberships & purchases catalog does not publish
+new video/course purchase offers. Public thumbnails remain available for cards.
+
+Set `CLOUDINARY_AUTH_TOKEN_KEY` on the backend to the hexadecimal token key
+configured for the Cloudinary delivery domain, and enable token-based
+authenticated delivery for that domain in Cloudinary. The backend mints a
+video-specific signed Cloudinary URL valid for one hour only after checking
+channel ownership, a verified video/course purchase, or an active membership.
+The playback endpoint returns no media URL to unauthorized viewers. Paid media
+is never converted from public to private in place: older uploads remain
+legacy/public and cannot be configured as protected offers. A viewer who has
+already received a signed playback URL may use it until its one-hour expiry.
+
+Do not treat the feature as production-live until the merchant is activated,
+all Razorpay secrets and the Cloudinary token key are configured, webhooks and
+authenticated delivery are registered, and end-to-end flows have been tested
+in Razorpay test mode and then live mode.

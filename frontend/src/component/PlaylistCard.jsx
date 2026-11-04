@@ -87,8 +87,8 @@ export default function PlaylistCard({ id, title, videos, savedBy }) {
 
       {/* Modal for playlist videos */}
       {showVideos && (
-        <div className="fixed inset-0 bg-[#00000032] flex justify-center items-center z-50 backdrop-blur-sm ">
-          <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl w-11/12 md:w-5/6 lg:w-4/5 xl:w-3/4 max-h-[85vh] overflow-y-auto shadow-2xl p-6 relative border border-gray-700">
+        <div className="fixed inset-0 bg-[#00000032] flex justify-center items-center z-50 backdrop-blur-sm" onClick={() => setShowVideos(false)}>
+          <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl w-11/12 md:w-5/6 lg:w-4/5 xl:w-3/4 max-h-[85vh] overflow-y-auto shadow-2xl p-6 relative border border-gray-700" onClick={(event) => event.stopPropagation()}>
             {/* Close Button */}
             <button
               onClick={() => setShowVideos(false)}
@@ -110,6 +110,7 @@ export default function PlaylistCard({ id, title, videos, savedBy }) {
                   key={v._id || `${id}-${index}`} // ✅ fallback key
                   id={v._id}
                   thumbnail={v.thumbnail}
+                  videoUrl={v.videoUrl}
                   duration={v.duration}
                   channelLogo={v.channel?.avatar}
                   title={v.title}

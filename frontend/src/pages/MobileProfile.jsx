@@ -1,6 +1,6 @@
 import { t } from '../../utils/i18n.js';
 import { signInWithPopup } from "firebase/auth";
-import { FaHistory, FaList, FaClock, FaThumbsUp, FaCog, FaQuestionCircle, FaCommentAlt } from "react-icons/fa";
+import { FaHistory, FaList, FaClock, FaThumbsUp, FaCog, FaQuestionCircle, FaCommentAlt, FaCreditCard } from "react-icons/fa";
 import { GoVideo } from "react-icons/go";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -120,6 +120,7 @@ function MobileProfile() {
         <ProfileMenuItem icon={<FaClock />} text="Save Videos" onClick={()=>navigate("/savevideos")} />
         <ProfileMenuItem icon={<FaThumbsUp />} text="Liked Videos" onClick={()=>navigate("/likedvideos")} />
         {userData?.channel && <ProfileMenuItem icon={<SiYoutubestudio className="w-5 h-5 text-orange-400" />} text="PT Studio" onClick={()=>navigate("/ptstudio/dashboard")} />}
+        <ProfileMenuItem icon={<FaCreditCard />} text="Memberships & purchases" onClick={() => navigate("/memberships-and-purchases")} />
         <ProfileMenuItem icon={<FaCog />} text="Settings" onClick={() => navigate("/settings")} />
         <ProfileMenuItem icon={<FaQuestionCircle />} text="Help" onClick={() => navigate("/help")} />
         <ProfileMenuItem icon={<FaCommentAlt />} text="Send feedback" onClick={() => navigate("/send-feedback")} />

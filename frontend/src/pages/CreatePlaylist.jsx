@@ -3,7 +3,7 @@ import { VideoThumbnail } from "../component/VideoCard";
 import React, { useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import { ClipLoader } from "react-spinners";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config";
@@ -12,12 +12,15 @@ import { setChannelData } from "../redux/userSlice";
 
 const CreatePlaylist = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { channelData } = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const {videoData} = useSelector(state=>state.content)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedVideos, setSelectedVideos] = useState([]);
+  const [selectedVideos, setSelectedVideos] = useState(
+    location.state?.videoId ? [location.state.videoId] : []
+  );
   const [loading, setLoading] = useState(false);
  
 

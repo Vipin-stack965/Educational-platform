@@ -22,15 +22,14 @@ export const createPlaylist = async (req, res) => {
       return res.status(403).json({ message: "You can only create playlists on your own channel" });
     }
 
-    // Verify that all selected videos belong to this channel
+    // Verify selected videos exist; playlists can include videos from other channels.
     if (videoIds.length > 0) {
       const videos = await Video.find({
-        _id: { $in: videoIds },
-        channel: channelId
+        _id: { $in: videoIds }
       });
 
       if (videos.length !== videoIds.length) {
-        return res.status(400).json({ message: "Some videos not found in this channel" });
+        return res.status(400).json({ message: "Some videos were not found" });
       }
     }
 
@@ -104,14 +103,11 @@ export const updatePlaylist = async (req, res) => {
     if (title) playlist.title = title;
     if (description) playlist.description = description;
 
-    // ✅ Add videos (avoid duplicates)
+    // Add existing videos from any channel and avoid duplicates.
     if (addVideos.length > 0) {
-      const ownedVideos = await Video.find({
-        _id: { $in: addVideos },
-        channel: playlist.channel
-      }).select("_id");
-      if (ownedVideos.length !== addVideos.length) {
-        return res.status(400).json({ message: "Playlists can only contain videos from their channel" });
+      const existingVideos = await Video.find({ _id: { $in: addVideos } }).select("_id");
+      if (existingVideos.length !== new Set(addVideos.map(String)).size) {
+        return res.status(400).json({ message: "Some videos were not found" });
       }
     }
     playlist.videos.push(...addVideos);

@@ -16,7 +16,7 @@ function PTStudio() {
   return (
     <div className="bg-[#0f0f0f] text-white min-h-screen flex flex-col">
       {/* ---------- HEADER ---------- */}
-      <header className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-gray-800 bg-[#0f0f0f] shadow-md">
+      <header className="h-14 px-4 sm:px-6 flex items-center justify-between bg-[#0f0f0f]">
         {/* Left Logo */}
         <div
           className="flex items-center gap-2 cursor-pointer"
@@ -50,7 +50,7 @@ function PTStudio() {
       {/* ---------- BODY (SIDEBAR + MAIN) ---------- */}
       <div className="flex flex-1 flex-col md:flex-row">
         {/* Sidebar (hidden on small devices) */}
-        <aside className="hidden md:flex w-56 lg:w-64 bg-[#121212] border-r border-gray-800 flex-col p-4 shadow-lg">
+        <aside className="hidden md:flex w-56 lg:w-64 bg-[#121212] flex-col p-4">
           {/* Channel Info */}
           {channelData ? (
             <div className="flex flex-col items-center gap-2 mb-8 text-center">
@@ -100,18 +100,14 @@ function PTStudio() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 pb-20 md:pb-6">
-          <div className="border border-gray-700 rounded-lg p-4 sm:p-6 text-center text-gray-400 bg-[#181818] shadow-inner min-h-[70vh]">
-            {open && <Profile onClose={() => setOpen(false)} />}
-            <div className="mt-4">
-              <Outlet />
-            </div>
-          </div>
+        <main className="min-w-0 flex-1 pb-20 md:pb-6">
+          {open && <Profile onClose={() => setOpen(false)} />}
+          <Outlet />
         </main>
       </div>
 
       {/* ---------- MOBILE BOTTOM NAV ---------- */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-gray-800 flex justify-around py-2 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f0f0f] flex justify-around py-2 z-50">
         <MobileNavItem
           icon={<FaTachometerAlt />}
           text="Dashboard"

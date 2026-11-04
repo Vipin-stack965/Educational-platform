@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 @import "tailwindcss";
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 *{
   font-family: "Roboto", sans-serif;
    -ms-overflow-style: none;  /* IE and Edge */
@@ -16,54 +20,122 @@ body {
 body {
   background-color: #0f0f0f;
   color: #fff;
+  cursor: default;
+  caret-color: transparent;
 }
 
-[data-theme="light"] body {
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+  caret-color: auto;
+}
+
+select {
+  cursor: default;
+}
+
+a {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+  color-scheme: dark;
+}
+
+#root[data-theme="light"] {
   background-color: #f9f9f9;
   color: #0f0f0f;
+  color-scheme: light;
 }
 
-[data-theme="light"] [class*="bg-[#0f0f0f]"] {
+#root[data-theme="light"] [class*="bg-[#0f0f0f]"] {
   background-color: #f9f9f9 !important;
 }
 
-[data-theme="light"] .youtube-sidebar {
+#root[data-theme="light"] .youtube-sidebar {
   background-color: #fff !important;
 }
 
-[data-theme="light"] .youtube-sidebar .sidebar-item-selected {
+#root[data-theme="light"] .youtube-sidebar .sidebar-item-selected {
   background-color: #e5e5e5 !important;
 }
 
-[data-theme="light"] .youtube-sidebar .sidebar-item:hover:not(.sidebar-item-selected) {
+#root[data-theme="light"] .youtube-sidebar .sidebar-item:hover:not(.sidebar-item-selected) {
   background-color: #f2f2f2 !important;
 }
 
-[data-theme="light"] [class*="bg-[#121212]"],
-[data-theme="light"] [class*="bg-[#181818]"],
-[data-theme="light"] [class*="bg-[#1f1f1f]"],
-[data-theme="light"] [class*="bg-[#212121]"],
-[data-theme="light"] [class*="bg-[#272727]"],
-[data-theme="light"] [class*="bg-[#333]"] {
+#root[data-theme="light"] [class*="bg-[#121212]"],
+#root[data-theme="light"] [class*="bg-[#181818]"],
+#root[data-theme="light"] [class*="bg-[#1f1f1f]"],
+#root[data-theme="light"] [class*="bg-[#212121]"],
+#root[data-theme="light"] [class*="bg-[#272727]"],
+#root[data-theme="light"] [class*="bg-[#333]"] {
   background-color: #fff !important;
 }
 
-[data-theme="light"] [class~="text-white"] {
+#root[data-theme="light"] [class~="text-white"] {
   color: #0f0f0f !important;
 }
 
-[data-theme="light"] [class~="bg-blue-600"][class~="text-white"],
-[data-theme="light"] [class~="bg-blue-500"][class~="text-white"],
-[data-theme="light"] [class~="bg-red-600"][class~="text-white"] {
+#root[data-theme="light"] [class~="bg-blue-600"][class~="text-white"],
+#root[data-theme="light"] [class~="bg-blue-500"][class~="text-white"],
+#root[data-theme="light"] [class~="bg-red-600"][class~="text-white"] {
   color: #fff !important;
 }
 
-[data-theme="light"] [class~="text-gray-300"],
-[data-theme="light"] [class~="text-gray-400"] {
+#root[data-theme="light"] [class~="text-gray-300"],
+#root[data-theme="light"] [class~="text-gray-400"] {
   color: #606060 !important;
 }
 
-[data-theme="light"] [class*="border-gray-700"],
-[data-theme="light"] [class*="border-gray-800"] {
+#root[data-theme="light"] [class*="border-gray-700"],
+#root[data-theme="light"] [class*="border-gray-800"] {
   border-color: #d1d5db !important;
+}
+
+.profile-menu-item,
+.profile-menu-submenu-item {
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.profile-menu-item:focus-visible,
+.profile-menu-submenu-item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.profile-menu-item[aria-expanded="true"] {
+  background-color: #303030;
+}
+
+#root[data-theme="light"] .profile-menu {
+  color: #0f172a !important;
+}
+
+#root[data-theme="light"] .profile-menu-item {
+  color: #1f2937 !important;
+}
+
+#root[data-theme="light"] .profile-menu-item:hover,
+#root[data-theme="light"] .profile-menu-item:focus-visible,
+#root[data-theme="light"] .profile-menu-item[aria-expanded="true"] {
+  background-color: #e8f0fe !important;
+  color: #111827 !important;
+}
+
+#root[data-theme="light"] .profile-menu-submenu {
+  background-color: #f8fafc;
+  border-color: #cbd5e1 !important;
+}
+
+#root[data-theme="light"] .profile-menu-submenu-item {
+  color: #374151 !important;
+}
+
+#root[data-theme="light"] .profile-menu-submenu-item:hover,
+#root[data-theme="light"] .profile-menu-submenu-item:focus-visible {
+  background-color: #dbeafe !important;
+  color: #111827 !important;
 }

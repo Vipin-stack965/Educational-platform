@@ -19,6 +19,7 @@ const shortSchema = new mongoose.Schema({
   channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true },
   title: { type: String, required: true },
   shortUrl: { type: String, required: true },
+  thumbnail: { type: String, default: "" },
   moderationCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "ModerationCase", unique: true, sparse: true },
   views: { type: Number, default: 0 },
   tags: [{ type: String }],

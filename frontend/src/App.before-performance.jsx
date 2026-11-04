@@ -82,25 +82,14 @@ function App() {
   }, [])
 
   const { userData, isAuthLoading } = useSelector(state => state.user)
-  const themePreference = userData?.preferences?.theme || "system"
+  const themePreference = userData?.preferences?.theme === "light" ? "light" : "dark"
   const languagePreference = userData?.preferences?.language || "en"
   setLanguage(languagePreference)
 
   useEffect(() => {
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-    const applyPreferences = () => {
-      const theme = themePreference === "system"
-        ? (systemTheme.matches ? "dark" : "light")
-        : themePreference
-      document.documentElement.dataset.theme = theme
-      document.documentElement.lang = languagePreference
-    }
-
-    applyPreferences()
-    if (themePreference === "system") {
-      systemTheme.addEventListener("change", applyPreferences)
-    }
-    return () => systemTheme.removeEventListener("change", applyPreferences)
+    const appRoot = document.getElementById("root")
+    if (appRoot) appRoot.dataset.theme = themePreference
+    document.documentElement.lang = languagePreference
   }, [themePreference, languagePreference])
 
   const protect = (children, accountOnly = false) => (

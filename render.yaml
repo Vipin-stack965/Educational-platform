@@ -27,12 +27,30 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: CLOUDINARY_AUTH_TOKEN_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODERATION_MODEL
         value: gemini-3.8-flash
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAY_ALLOWED_CURRENCIES
+        value: INR
       - key: MODERATOR_EMAILS
         sync: false
+      - key: AGENT_PANEL_URL
+        sync: false
+      - key: AGENT_PANEL_FRONTEND_URL
+        sync: false
+      - key: AGENT_PANEL_INTEGRATION_SECRET
+        sync: false
+      - key: EDUTUBE_COUNTRY_HEADER
+        value: cf-ipcountry
       - key: USER_EMAIL
         sync: false
       - key: USER_PASSWORD

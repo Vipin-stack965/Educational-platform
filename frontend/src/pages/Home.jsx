@@ -61,7 +61,7 @@ function Home({ accountOverlay }) {
   loadingRef.current = loading;
   const { userData, channelData, subscribeChannel } = useSelector((state) => state.user);
   const { allVideoData, recommendationData } = useSelector((state) => state.content);
-  const contentStyle = { "--sidebar-width": `${sidebarWidth}px` };
+  const contentStyle = { "--sidebar-width": "72px" };
   const categoryVideos = userData
     ? [
       ...(recommendationData?.recommendedVideos || []),
@@ -524,7 +524,7 @@ function Home({ accountOverlay }) {
       {/* ---------- SIDEBAR ---------- */}
       <aside
         style={{ width: `${sidebarWidth}px` }}
-        className={`youtube-sidebar fixed top-[60px] bottom-0 z-40 hidden flex-col overflow-y-auto bg-[#0f0f0f] shadow-xl transition-[width] duration-150 md:flex ${isWatchPage && !sidebarOpen ? "!hidden" : ""}`}
+        className={`youtube-sidebar fixed left-0 top-[60px] bottom-0 z-40 hidden flex-col overflow-y-auto bg-[#0f0f0f] shadow-xl transition-[width] duration-150 md:flex ${isWatchPage && !sidebarOpen ? "!hidden" : ""}`}
       >
         <nav className="space-y-1 mt-3">
           <SidebarItem icon={<FaHome />} text="Home" open={sidebarOpen} selected={isActivePath("/")} onClick={() => navigateFromMenu("/")} />

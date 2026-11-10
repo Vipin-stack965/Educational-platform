@@ -9,6 +9,7 @@ import {
 } from "react-icons/fa";
 import { serverUrl } from "../config";
 import axios from "axios";
+import { io } from "socket.io-client";
 import { ClipLoader } from "react-spinners";
 import Description from "../component/Description";
 import { showCustomAlert } from "../component/CustomAlert";
@@ -130,7 +131,6 @@ const WatchVideoPage = ({ videoId: providedVideoId, isPersistentMiniPlayer = fal
 
   useEffect(() => {
     let cancelled = false;
-    let interval;
     setAdFreeAccess(null);
     if (!userData?._id || userData.isGuest || !channel?._id) return undefined;
     const checkAccess = () => axios.get(`${serverUrl}/api/payments/ad-free-access`, {
@@ -142,10 +142,21 @@ const WatchVideoPage = ({ videoId: providedVideoId, isPersistentMiniPlayer = fal
         if (!cancelled) console.error("Unable to check ad-free offer access:", error);
       });
     checkAccess();
-    interval = window.setInterval(checkAccess, 60_000);
+    const socket = io(serverUrl, { withCredentials: true });
+    socket.on("live:payment-data-changed", checkAccess);
+    socket.on("connect", checkAccess);
+    socket.on("connect_error", (connectionError) => {
+      console.error("EduTube live updates are unavailable:", connectionError.message);
+    });
+    const expiryCheckInterval = window.setInterval(checkAccess, 60_000);
+    window.addEventListener("focus", checkAccess);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      socket.off("live:payment-data-changed", checkAccess);
+      socket.off("connect", checkAccess);
+      socket.disconnect();
+      window.clearInterval(expiryCheckInterval);
+      window.removeEventListener("focus", checkAccess);
     };
   }, [userData?._id, userData?.isGuest, channel?._id, videoId]);
 

@@ -2,6 +2,7 @@ import Feedback from "../model/feedbackModel.js";
 import Channel from "../model/channelModel.js";
 import User from "../model/userModel.js";
 import sendFeedbackMail from "../config/sendFeedbackMail.js";
+import validator from "validator";
 
 const preferenceOptions = {
   theme: ["light", "dark"],
@@ -189,5 +190,52 @@ export const submitFeedback = async (req, res) => {
   } catch (error) {
     console.error("Submit feedback error:", error);
     return res.status(500).json({ message: "Unable to save feedback" });
+  }
+};
+
+export const submitAgentPanelGuestFeedback = async (req, res) => {
+  try {
+    const category = typeof req.body?.category === "string" ? req.body.category : "";
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const username = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+
+    if (!["general", "bug", "feature", "account"].includes(category)) {
+      return res.status(400).json({ message: "Choose a valid feedback category." });
+    }
+    if (!validator.isEmail(email) || email.length > 254) {
+      return res.status(400).json({ message: "Enter a valid email address." });
+    }
+    if (!username || username.length > 80) {
+      return res.status(400).json({ message: "Enter a name between 1 and 80 characters." });
+    }
+    if (!message || message.length > 5000) {
+      return res.status(400).json({ message: "Feedback must be between 1 and 5000 characters." });
+    }
+
+    const feedback = await Feedback.create({ email, category, message });
+    try {
+      await sendFeedbackMail({
+        feedbackId: feedback._id.toString(),
+        category,
+        message,
+        username,
+        email,
+      });
+      return res.status(201).json({
+        message: "Feedback saved and sent to support. Thank you!",
+        emailSent: true,
+      });
+    } catch (emailError) {
+      console.error("Agent Panel guest feedback email delivery failed:", emailError.message || emailError);
+      return res.status(202).json({
+        message: "Feedback was saved, but the support email could not be sent.",
+        emailSent: false,
+        feedbackId: feedback._id,
+      });
+    }
+  } catch (error) {
+    console.error("Unable to save Agent Panel guest feedback:", error);
+    return res.status(500).json({ message: "Unable to save feedback." });
   }
 };

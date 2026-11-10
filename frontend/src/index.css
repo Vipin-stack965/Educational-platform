@@ -20,6 +20,7 @@ body {
 body {
   background-color: #0f0f0f;
   color: #fff;
+  font-size: 14px;
   cursor: default;
   caret-color: transparent;
 }

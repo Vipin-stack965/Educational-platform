@@ -7,6 +7,13 @@ import PlatformOffer from "../model/platformOfferModel.js";
 import PlatformOrder from "../model/platformOrderModel.js";
 
 const unavailablePlanTypes = ["family", "two-person"];
+const prepaidPlanMonths = new Map([[365, 12], [90, 3], [30, 1]]);
+
+const isPublishedPlanTerm = (offer) => (
+  !["individual", "student"].includes(offer.planType) ||
+  offer.billingType !== "one-time" ||
+  prepaidPlanMonths.has(offer.durationDays)
+);
 
 const getRazorpay = () => {
   const keyId = process.env.RAZORPAY_KEY_ID?.trim();
@@ -45,7 +52,7 @@ const asOffer = (offer) => ({
 const getOffer = async (offerId) => {
   if (!mongoose.isValidObjectId(offerId)) return null;
   const offer = await PlatformOffer.findOne({ _id: offerId, active: true }).lean();
-  if (!offer) return null;
+  if (!offer || !isPublishedPlanTerm(offer)) return null;
   if (offer.scope === "channel" && !await Channel.exists({ _id: offer.channel })) return null;
   return offer;
 };
@@ -65,7 +72,8 @@ export const getPublicPlatformOffers = async (_req, res) => {
     return res.json(offers
       .filter((offer) => (
         (offer.scope === "account" || offer.channel) &&
-        !unavailablePlanTypes.includes(offer.planType)
+        !unavailablePlanTypes.includes(offer.planType) &&
+        isPublishedPlanTerm(offer)
       ))
       .map(asOffer));
   } catch (error) {

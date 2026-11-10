@@ -1,6 +1,8 @@
 import { GoogleGenAI, createPartFromUri } from "@google/genai";
 
 const FILE_PROCESSING_TIMEOUT_MS = 180_000;
+const INITIAL_FILE_POLL_INTERVAL_MS = 500;
+const MAX_FILE_POLL_INTERVAL_MS = 2_000;
 const MAX_TRANSIENT_RETRIES = 2;
 
 const getApiStatus = (error) => (
@@ -46,9 +48,11 @@ const parseVerdict = (text) => {
 const waitForFile = async (ai, uploadedFile) => {
   const deadline = Date.now() + FILE_PROCESSING_TIMEOUT_MS;
   let file = uploadedFile;
+  let pollIntervalMs = INITIAL_FILE_POLL_INTERVAL_MS;
   while (file.state === "PROCESSING" && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     file = await ai.files.get({ name: uploadedFile.name });
+    pollIntervalMs = Math.min(pollIntervalMs * 2, MAX_FILE_POLL_INTERVAL_MS);
   }
   if (file.state !== "ACTIVE") {
     throw new Error(file.error?.message || "AI could not process the uploaded media.");

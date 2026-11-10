@@ -20,7 +20,15 @@ export const getModerationQueue = async (_req, res) => {
   }
 };
 
-export const applyModerationDecision = async ({ caseId, decision, reason, reviewerId, source = "moderator" }) => {
+export const applyModerationDecision = async ({
+  caseId,
+  decision,
+  reason,
+  reviewerId,
+  source = "moderator",
+  channelOnlyTemporaryBlock = false,
+  blockDurationMinutes,
+}) => {
   if (!mongoose.isValidObjectId(caseId)) {
     return { status: 400, body: { message: "Moderation case ID is invalid." } };
   }
@@ -68,7 +76,13 @@ export const applyModerationDecision = async ({ caseId, decision, reason, review
       return { status: 200, body: { message: "Content approved and published.", content } };
     }
 
-    const enforcement = await recordEducationViolation(moderationCase.channel, moderationCase.owner, reviewReason);
+    const enforceChannelOnly = source === "agent" && channelOnlyTemporaryBlock === true;
+    const enforcement = await recordEducationViolation(
+      moderationCase.channel,
+      moderationCase.owner,
+      reviewReason,
+      enforceChannelOnly ? { channelOnlyTemporaryBlock: true, blockDurationMinutes } : undefined,
+    );
     moderationCase.status = "rejected";
     if (reviewerId) moderationCase.reviewedBy = reviewerId;
     moderationCase.reviewedAt = new Date();
@@ -78,12 +92,15 @@ export const applyModerationDecision = async ({ caseId, decision, reason, review
     return {
       status: 200,
       body: {
-        message: enforcement.blockType === "permanent"
-          ? `Content rejected. This is channel violation ${enforcement.violationCount}; the account is permanently blocked.`
-          : `Content rejected. This is channel violation ${enforcement.violationCount}; the account is blocked for 3 hours.`,
+        message: enforcement.channelOnlyTemporaryBlock
+          ? `Content rejected. The channel is blocked for ${enforcement.blockDurationMinutes} minutes; the account remains active.`
+          : enforcement.blockType === "permanent"
+          ? `Content rejected. This is channel violation ${enforcement.violationCount}; the channel is permanently blocked.${enforcement.selfUnblockAvailable ? " One paid self-unblock is available." : " This channel cannot be unblocked again."}`
+          : `Content rejected. This is channel violation ${enforcement.violationCount}; the channel is blocked for 24 hours.`,
         violationCount: enforcement.violationCount,
         blockType: enforcement.blockType,
         blockedUntil: enforcement.blockedUntil,
+        selfUnblockAvailable: enforcement.selfUnblockAvailable,
       },
     };
   } catch (error) {

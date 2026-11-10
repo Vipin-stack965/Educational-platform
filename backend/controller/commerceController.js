@@ -10,6 +10,7 @@ import RazorpayWebhookEvent from "../model/razorpayWebhookEventModel.js";
 import { canAccessPaidVideo, getPlaylistAccess } from "../service/paidContentAccess.js";
 import Video from "../model/videoModel.js";
 import { processPlatformWebhook } from "./platformCommerceController.js";
+import { processChannelUnblockWebhook } from "./channelUnblockController.js";
 
 const allowedCurrencies = () => {
   const configured = process.env.RAZORPAY_ALLOWED_CURRENCIES
@@ -572,6 +573,7 @@ export const checkEntitlement = async (req, res) => {
 };
 
 const processWebhook = async (event, razorpay) => {
+  if (await processChannelUnblockWebhook(event, razorpay)) return;
   if (await processPlatformWebhook(event, razorpay)) return;
   const payment = event.payload?.payment?.entity;
   if (event.event === "payment.captured" && payment?.order_id) {

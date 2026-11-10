@@ -3,8 +3,13 @@ import uploadOnCloudinary, { deleteCloudinaryAsset, getCloudinaryUploadErrorMess
 import Short from "../model/shortModel.js";
 import { clearBlockedAccountSession, removeUploadedTempFiles, screenContentForPublishing } from "../service/moderationEnforcement.js";
 
-
-
+const deleteUploadedShortAssets = async (assets) => {
+  await Promise.all(assets.filter(Boolean).map((asset) =>
+    deleteCloudinaryAsset(asset).catch((error) => {
+      console.error("Unable to clean up Short media after moderation:", error);
+    })
+  ));
+};
 
 export const createShort = async (req, res) => {
   let uploadedAssets = [];
@@ -41,6 +46,32 @@ export const createShort = async (req, res) => {
       }
     }
 
+    const cloudinaryUploadStartedAt = Date.now();
+    const cloudinaryUploadsPromise = Promise.allSettled([
+      uploadOnCloudinary(file.path, {
+        resourceType: "video",
+        large: true,
+        keepFile: true,
+        returnDetails: true,
+      }),
+      thumbnailFile
+        ? uploadOnCloudinary(thumbnailFile.path, {
+          keepFile: true,
+          returnDetails: true,
+        })
+        : Promise.resolve(null),
+    ]).then(async (results) => {
+      console.info(`Short media staging completed in ${Date.now() - cloudinaryUploadStartedAt}ms.`);
+      const assets = results
+        .filter((result) => result.status === "fulfilled" && result.value)
+        .map((result) => result.value);
+      const uploadError = results.find((result) => result.status === "rejected");
+      if (!uploadError) return { assets, error: null };
+
+      await deleteUploadedShortAssets(assets);
+      return { assets: null, error: uploadError.reason };
+    });
+
     let screening;
     try {
       screening = await screenContentForPublishing({
@@ -53,57 +84,50 @@ export const createShort = async (req, res) => {
         mediaFile: file,
         thumbnailFile,
         channelCategory: channel.category,
+        uploadedAssetsPromise: cloudinaryUploadsPromise,
       });
     } catch (error) {
       console.error("AI educational review or agent handoff failed; Short was not published:", error);
+      const stagedUpload = await cloudinaryUploadsPromise;
+      uploadedAssets = stagedUpload.assets || [];
+      if (error.moderationCaseOwnsUploadedAssets) uploadedAssets = [];
+      else await deleteUploadedShortAssets(uploadedAssets);
       await removeUploadedTempFiles(req);
       return res.status(503).json({
         message: "AI review or agent handoff is currently unavailable. The Short was not published; please try again later.",
       });
     }
 
+    const stagedUpload = await cloudinaryUploadsPromise;
+    uploadedAssets = stagedUpload.assets || [];
+    await removeUploadedTempFiles(req);
+    if (stagedUpload.error) throw stagedUpload.error;
+
     if (screening.status === "pending_review") {
-      await removeUploadedTempFiles(req);
+      uploadedAssets = [];
       return res.status(202).json({
         status: screening.status,
         moderationCaseId: screening.caseId,
-        message: screening.reviewQueue === "agent"
-          ? "AI could not confirm the educational relevance. The Short was sent to the agent review queue."
-          : "AI could not confirm the educational relevance. The Short was sent for moderator review.",
+        message: "AI could not confirm the educational relevance. The Short was sent to Check Auth for review and will be published only if approved.",
       });
     }
     if (screening.status === "rejected") {
-      await removeUploadedTempFiles(req);
+      await deleteUploadedShortAssets(uploadedAssets);
+      uploadedAssets = [];
       clearBlockedAccountSession(res);
       const isPermanent = screening.blockType === "permanent";
       return res.status(403).json({
         message: isPermanent
-          ? `This Short was not published. Channel violation ${screening.violationCount}/5: the account is permanently blocked.`
-          : `This Short was not published. Channel violation ${screening.violationCount}/5: the account is blocked for 3 hours and has been signed out.`,
+          ? `This Short was not published. Channel violation ${screening.violationCount}/5: the channel is permanently blocked.${screening.selfUnblockAvailable ? " Sign in to pay for its one available self-unblock." : " This channel cannot be unblocked again."}`
+          : `This Short was not published. Channel violation ${screening.violationCount}/5: the channel is blocked for 24 hours and the account has been signed out.`,
         violationCount: screening.violationCount,
         blockType: screening.blockType,
         blockedUntil: screening.blockedUntil,
+        selfUnblockAvailable: screening.selfUnblockAvailable,
       });
     }
 
-    const uploadResults = await Promise.allSettled([
-      uploadOnCloudinary(file.path, {
-        resourceType: "video",
-        large: true,
-        returnDetails: true,
-      }),
-      thumbnailFile
-        ? uploadOnCloudinary(thumbnailFile.path, { returnDetails: true })
-        : Promise.resolve(null),
-    ]);
-    uploadedAssets = uploadResults
-      .filter((result) => result.status === "fulfilled" && result.value)
-      .map((result) => result.value);
-    const failedUpload = uploadResults.find((result) => result.status === "rejected");
-    if (failedUpload) throw failedUpload.reason;
-    const [videoAsset, thumbnailAsset] = uploadResults.map((result) => (
-      result.status === "fulfilled" ? result.value : null
-    ));
+    const [videoAsset, thumbnailAsset] = stagedUpload.assets;
 
     // Create short in DB
     createdShort = await Short.create({
@@ -132,11 +156,7 @@ export const createShort = async (req, res) => {
       await Channel.updateOne({ _id: createdShort.channel }, { $pull: { shorts: createdShort._id } });
       await Short.deleteOne({ _id: createdShort._id });
     }
-    await Promise.all(uploadedAssets.map((asset) =>
-      deleteCloudinaryAsset(asset).catch((cleanupError) => {
-        console.error("Unable to clean up failed Short upload asset:", cleanupError);
-      })
-    ));
+    await deleteUploadedShortAssets(uploadedAssets);
     const uploadError = getCloudinaryUploadErrorMessage(error, "Short video");
     res.status(500).json({ message: `Short upload failed: ${uploadError}` });
   }

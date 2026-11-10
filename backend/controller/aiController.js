@@ -30,7 +30,9 @@ export const searchWithAi = async (req, res) => {
       }),
     });
 
-    const matchedChannels = await Channel.find(buildTextQuery(["name"]))
+    const matchedChannels = await Channel.find({
+      $and: [buildTextQuery(["name"]), { deletedAt: null }],
+    })
       .select("_id name avatar")
       .limit(50);
 
@@ -167,7 +169,9 @@ Examples:
       .populate("likes", "username photoUrl");
 
     // ✅ Find channels
-    const channels = await Channel.find({ $or: channelConditions })
+    const channels = await Channel.find({
+      $and: [{ $or: channelConditions }, { deletedAt: null }],
+    })
       .populate("owner", "username photoUrl")
       .populate("subscribers", "username photoUrl")
       .populate({

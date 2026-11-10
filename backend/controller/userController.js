@@ -4,6 +4,7 @@ import Short from "../model/shortModel.js"
 
 import User from "../model/userModel.js"
 import Video from "../model/videoModel.js"
+import getCountryCode from "../config/countryCode.js"
 
 
 
@@ -49,10 +50,11 @@ export const createChannel = async (req, res) => {
       return res.status(400).json({ message: "Channel name already taken" });
     }
 
-    const account = await User.findById(userId).select("preferences.profileVisibility");
+    const account = await User.findById(userId).select("preferences.profileVisibility countryCode");
     if (!account) {
       return res.status(404).json({ message: "Account not found. Please sign in again." });
     }
+    const detectedCountryCode = !account.countryCode ? getCountryCode(req) : undefined;
 
     let avatar;
     let bannerImage;
@@ -92,7 +94,8 @@ export const createChannel = async (req, res) => {
     await User.findByIdAndUpdate(userId, {
       channel: newChannel._id,
       username: name,
-      photoUrl: avatar
+      photoUrl: avatar,
+      ...(detectedCountryCode ? { countryCode: detectedCountryCode } : {})
     });
 
     return res.status(201).json({
@@ -238,7 +241,14 @@ export const getChannel = async (req, res) => {
 
 export const getAllChannel = async (req,res) => {
   try {
-    const channel = await Channel.find({ isPublic: { $ne: false } }).populate("owner")
+    const channel = await Channel.find({
+      isPublic: { $ne: false },
+      deletedAt: null,
+      $or: [
+        { educationBlockStatus: { $nin: ["temporary", "permanent"] } },
+        { educationBlockStatus: "temporary", educationBlockedUntil: { $lte: new Date() } },
+      ],
+    }).populate("owner")
     
       .populate("videos")
       .populate("shorts")

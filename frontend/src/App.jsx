@@ -47,6 +47,7 @@ import HelpPage from './pages/HelpPage'
 import FeedbackPage from './pages/FeedbackPage'
 import ModerationQueuePage from './pages/ModerationQueuePage'
 import MembershipsAndPurchasesPage from './pages/MembershipsAndPurchasesPage'
+import ChannelUnblockMembershipPage from './pages/ChannelUnblockMembershipPage'
 import { serverUrl } from './config'
 import { setLanguage, t } from '../utils/i18n.js'
 
@@ -190,6 +191,7 @@ function App() {
             <Route path="/history" element={protect(<HistoryPage />)} />
           </Route>
 
+          <Route path="/memberships-and-purchases/unblock" element={<ChannelUnblockMembershipPage />} />
           <Route path="/watch-video/:videoId" element={<Home />} />
           <Route path="/signin" element={<EduTubeSignin />} />
           <Route path="/signup" element={<Home accountOverlay={<CreateAccount />} />} />

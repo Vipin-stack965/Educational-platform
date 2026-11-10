@@ -7,9 +7,10 @@ import Short from "../model/shortModel.js";
 import Post from "../model/postModel.js";
 import uploadOnCloudinary, { deleteCloudinaryAsset } from "../config/cloudinary.js";
 import { reviewEducationalContent } from "./educationalModeration.js";
-import { createAgentReviewTask } from "./agentPanelIntegration.js";
+import { createCheckAuthReviewTask } from "./checkAuthIntegration.js";
+import { notifyEducationBlock } from "./channelBlockNotification.js";
 
-const TEMPORARY_BLOCK_MS = 3 * 60 * 60 * 1000;
+const TEMPORARY_BLOCK_MS = 24 * 60 * 60 * 1000;
 const PERMANENT_BLOCK_THRESHOLD = 5;
 
 export const clearBlockedAccountSession = (res) => {
@@ -104,18 +105,14 @@ export const screenContentForPublishing = async (input) => {
     return { status: "rejected", reason: aiResult.reason, ...enforcement };
   }
 
-  const configuredModerators = (process.env.MODERATOR_EMAILS || "")
-    .split(",")
-    .map((email) => email.trim())
-    .filter((email) => email && !/example\.com$/i.test(email));
-  const hasAgentPanelUrl = Boolean(process.env.AGENT_PANEL_URL?.trim());
-  const hasAgentPanelSecret = Boolean(process.env.AGENT_PANEL_INTEGRATION_SECRET?.trim());
-  if (hasAgentPanelUrl !== hasAgentPanelSecret) {
-    throw new Error("Configure both AGENT_PANEL_URL and AGENT_PANEL_INTEGRATION_SECRET for agent moderation.");
+  const hasCheckAuthUrl = Boolean(process.env.CHECK_AUTH_URL?.trim());
+  const hasIntegrationSecret = Boolean(process.env.AGENT_PANEL_INTEGRATION_SECRET?.trim());
+  if (hasCheckAuthUrl !== hasIntegrationSecret) {
+    throw new Error("Configure both CHECK_AUTH_URL and AGENT_PANEL_INTEGRATION_SECRET for Check Auth moderation.");
   }
-  const hasAgentPanelConfig = hasAgentPanelUrl && hasAgentPanelSecret;
-  if (!configuredModerators.length && !hasAgentPanelConfig) {
-    throw new Error("No human moderator or Agent Panel is configured for uncertain submissions.");
+  const hasCheckAuthConfig = hasCheckAuthUrl && hasIntegrationSecret;
+  if (!hasCheckAuthConfig) {
+    throw new Error("Configure CHECK_AUTH_URL and AGENT_PANEL_INTEGRATION_SECRET to review uncertain submissions in Check Auth.");
   }
 
   const stagedUpload = input.uploadedAssetsPromise
@@ -129,65 +126,128 @@ export const screenContentForPublishing = async (input) => {
     reason: aiResult.reason,
     fileSizeBytes: input.mediaFile?.size,
   });
-  if (hasAgentPanelConfig) {
-    moderationCase.agentTaskCreated = true;
-    await moderationCase.save();
-    try {
-      await createAgentReviewTask(moderationCase, input.channel.category);
-    } catch (error) {
-      await ModerationCase.updateOne(
-        { _id: moderationCase._id, status: "pending" },
-        { $set: { agentTaskCreated: false } }
-      );
-      if (error && typeof error === "object") {
-        error.moderationCaseOwnsUploadedAssets = true;
-      }
-      throw error;
+  moderationCase.agentTaskCreated = true;
+  await moderationCase.save();
+  try {
+    await createCheckAuthReviewTask(moderationCase, input.channel.category);
+  } catch (error) {
+    await ModerationCase.updateOne(
+      { _id: moderationCase._id, status: "pending" },
+      { $set: { agentTaskCreated: false } }
+    );
+    if (error && typeof error === "object") {
+      error.moderationCaseOwnsUploadedAssets = true;
     }
+    throw error;
   }
   return {
     status: "pending_review",
     caseId: moderationCase._id,
     reason: aiResult.reason,
-    reviewQueue: hasAgentPanelConfig ? "agent" : "moderator",
   };
 };
 
-export const recordEducationViolation = async (channelId, userId, reason) => {
+export const recordEducationViolation = async (
+  channelId,
+  userId,
+  reason,
+  { channelOnlyTemporaryBlock = false, blockDurationMinutes = 0 } = {},
+) => {
   const channel = await Channel.findOneAndUpdate(
     { _id: channelId, owner: userId },
     { $inc: { educationViolationCount: 1 } },
-    { new: true, projection: { educationViolationCount: 1 } }
+    { new: true, projection: { name: 1, educationViolationCount: 1, educationBlockStatus: 1, paidUnblockCount: 1 } }
   );
   if (!channel) throw new Error("Unable to record the channel's education policy violation.");
 
   const violationCount = channel.educationViolationCount;
-  if (violationCount >= PERMANENT_BLOCK_THRESHOLD) {
-    await User.updateOne(
-      { _id: userId },
-      {
-        $set: {
-          educationBlockStatus: "permanent",
-          educationBlockedUntil: null,
-          educationBlockReason: "Five confirmed educational-content policy violations",
+  if (channelOnlyTemporaryBlock && channel.educationBlockStatus === "permanent") {
+    return {
+      violationCount,
+      blockType: "permanent",
+      blockedUntil: null,
+      channelOnlyTemporaryBlock: false,
+    };
+  }
+  if (!channelOnlyTemporaryBlock && violationCount >= PERMANENT_BLOCK_THRESHOLD) {
+    const [channelTransition] = await Promise.all([
+      Channel.updateOne(
+        { _id: channelId, educationBlockStatus: { $ne: "permanent" } },
+        { $set: { educationBlockStatus: "permanent", educationBlockedUntil: null, educationBlockedAt: new Date() } },
+      ),
+      User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            educationBlockStatus: "permanent",
+            educationBlockedUntil: null,
+            educationBlockReason: "Five confirmed educational-content policy violations",
+          },
         },
+      ),
+    ]);
+    const selfUnblockAvailable = (channel.paidUnblockCount || 0) < 1;
+    if (channelTransition.modifiedCount > 0) {
+      try {
+        await notifyEducationBlock({
+          userId,
+          channel,
+          blockType: "permanent",
+          reason: "Five confirmed educational-content policy violations",
+          selfUnblockAvailable,
+        });
+      } catch (error) {
+        console.error("Unable to email permanent channel block notice:", error);
       }
-    );
-    return { violationCount, blockType: "permanent", blockedUntil: null };
+    }
+    return {
+      violationCount,
+      blockType: "permanent",
+      blockedUntil: null,
+      selfUnblockAvailable,
+    };
   }
 
-  const blockedUntil = new Date(Date.now() + TEMPORARY_BLOCK_MS);
-  await User.updateOne(
-    { _id: userId, educationBlockStatus: { $ne: "permanent" } },
-    {
-      $set: {
-        educationBlockStatus: "temporary",
-        educationBlockedUntil: blockedUntil,
-        educationBlockReason: reason,
+  const durationMinutes = channelOnlyTemporaryBlock ? blockDurationMinutes : TEMPORARY_BLOCK_MS / 60000;
+  const blockedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+  const blockUpdates = [
+    Channel.updateOne(
+      { _id: channelId, educationBlockStatus: { $ne: "permanent" } },
+      { $set: { educationBlockStatus: "temporary", educationBlockedUntil: blockedUntil, educationBlockedAt: new Date() } },
+    ),
+  ];
+  if (!channelOnlyTemporaryBlock) {
+    blockUpdates.push(User.updateOne(
+      { _id: userId, educationBlockStatus: { $ne: "permanent" } },
+      {
+        $set: {
+          educationBlockStatus: "temporary",
+          educationBlockedUntil: blockedUntil,
+          educationBlockReason: reason,
+        },
       },
-    }
-  );
-  return { violationCount, blockType: "temporary", blockedUntil };
+    ));
+  }
+  await Promise.all(blockUpdates);
+  try {
+    await notifyEducationBlock({
+      userId,
+      channel,
+      blockType: "temporary",
+      reason,
+      blockDurationMinutes: durationMinutes,
+      channelOnly: channelOnlyTemporaryBlock,
+    });
+  } catch (error) {
+    console.error("Unable to email temporary channel block notice:", error);
+  }
+  return {
+    violationCount,
+    blockType: "temporary",
+    blockedUntil,
+    channelOnlyTemporaryBlock,
+    blockDurationMinutes: durationMinutes,
+  };
 };
 
 export const publishModerationCase = async (moderationCase) => {

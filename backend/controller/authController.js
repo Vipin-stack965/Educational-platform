@@ -4,6 +4,7 @@ import validator from 'validator'
 import bcrypt from 'bcryptjs'
 import uploadOnCloudinary, { getCloudinaryUploadErrorMessage } from "../config/cloudinary.js"
 import sendMail from "../config/sendMail.js"
+import getCountryCode from "../config/countryCode.js"
 import Channel from "../model/channelModel.js"
 import jwt from "jsonwebtoken"
 import { randomUUID } from "node:crypto"
@@ -38,6 +39,57 @@ const clearSessionCookie = (res, name) => {
     res.clearCookie(name, legacyAuthCookieClearOptions)
 }
 
+const verifyGoogleCredential = async (credential) => {
+    const apiKey = process.env.FIREBASE_API_KEY?.trim()
+    if (!apiKey || /replace_with|placeholder|example/i.test(apiKey)) {
+        const error = new Error("Google sign-in is unavailable because FIREBASE_API_KEY is not configured.")
+        error.status = 503
+        throw error
+    }
+
+    const response = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
+        {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ idToken: credential }),
+            signal: AbortSignal.timeout(10000),
+        },
+    )
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+        if (response.status === 400 || response.status === 401) return null
+        const error = new Error("Google identity verification is temporarily unavailable.")
+        error.status = 503
+        throw error
+    }
+
+    const identity = payload.users?.[0]
+    const isGoogleAccount = identity?.providerUserInfo?.some(
+        (provider) => provider.providerId === "google.com",
+    )
+    if (!identity?.emailVerified || !isGoogleAccount || !validator.isEmail(identity.email || "")) {
+        return null
+    }
+
+    return {
+        email: identity.email.trim().toLowerCase(),
+        username: typeof identity.displayName === "string" ? identity.displayName.trim() : "",
+        photoUrl: typeof identity.photoUrl === "string" ? identity.photoUrl.trim() : "",
+    }
+}
+
+const findBlockedChannelForSignIn = async (userId) => {
+    const fields = "_id deletedAt educationBlockStatus educationBlockedUntil paidUnblockCount"
+    const permanentlyBlockedChannel = await Channel.findOne({
+        owner: userId,
+        deletedAt: null,
+        educationBlockStatus: "permanent",
+    }).select(fields).lean()
+    if (permanentlyBlockedChannel) return permanentlyBlockedChannel
+    return Channel.findOne({ owner: userId }).select(fields).lean()
+}
+
 const createGuestSessionForMode = async (req, res, isAgentReview) => {
     try {
         clearSessionCookie(res, "token")
@@ -69,19 +121,6 @@ const createGuestSessionForMode = async (req, res, isAgentReview) => {
             email: `guest-${guestId}@guest.invalid`,
             isGuest: true
         })
-
-        try {
-            const channel = await Channel.create({
-                owner: guest._id,
-                name: `Guest channel ${guestId.slice(0, 8)}`,
-                category: "General"
-            })
-            guest.channel = channel._id
-            await guest.save()
-        } catch (error) {
-            await User.findByIdAndDelete(guest._id)
-            throw error
-        }
 
         const token = jwt.sign(
             { userId: guest._id.toString(), isGuest: true, ...(isAgentReview && { isAgentReview: true }) },
@@ -144,11 +183,13 @@ export const signUp = async (req, res) => {
         }
 
         const hashPassword = await bcrypt.hash(password, 10)
+        const countryCode = getCountryCode(req)
         const user = await User.create({
             username,
             email,
             password: hashPassword,
-            photoUrl
+            photoUrl,
+            ...(countryCode ? { countryCode } : {})
         })
 
         const token = await genToken(user._id)
@@ -181,12 +222,49 @@ export const signin = async (req,res) => {
         if(!isMatch){
             return res.status(401).json({message:"Invalid email or password"})
         }
+        if (user.deletedAt) {
+            return res.status(403).json({ message: "This account is disabled. Contact an EduTube administrator to restore access." })
+        }
+        const ownedChannel = await findBlockedChannelForSignIn(user._id)
+        if (ownedChannel?.deletedAt) {
+            return res.status(403).json({ message: "This account is blocked because its channel is blocked. Contact an EduTube administrator." })
+        }
+        if (ownedChannel?.educationBlockStatus === "permanent") {
+            if ((ownedChannel.paidUnblockCount || 0) < 1) {
+                const unblockToken = jwt.sign(
+                    { userId: String(user._id), purpose: "channel-unblock" },
+                    process.env.JWT_SECRET,
+                    { expiresIn: "1h" },
+                )
+                return res.status(403).json({
+                    message: "This channel is permanently blocked after five confirmed educational-content violations.",
+                    unblockToken,
+                    selfUnblockAvailable: true,
+                })
+            }
+            return res.status(403).json({
+                message: "This channel was permanently blocked again after its one paid unblock. It cannot be unblocked again.",
+                selfUnblockAvailable: false,
+            })
+        }
+        if (ownedChannel?.educationBlockStatus === "temporary" && ownedChannel.educationBlockedUntil > new Date()) {
+            return res.status(403).json({
+                message: "This channel is temporarily blocked for 24 hours after an educational-content violation.",
+                blockedUntil: ownedChannel.educationBlockedUntil,
+            })
+        }
+        if (ownedChannel?.educationBlockStatus === "temporary") {
+            await Channel.updateOne(
+                { _id: ownedChannel._id, educationBlockStatus: "temporary" },
+                { $set: { educationBlockStatus: "active", educationBlockedUntil: null, educationBlockedAt: null } },
+            )
+        }
         if (user.educationBlockStatus === "permanent") {
             return res.status(403).json({ message: "This account is permanently blocked after repeated educational-content policy violations." })
         }
         if (user.educationBlockStatus === "temporary" && user.educationBlockedUntil > new Date()) {
             return res.status(403).json({
-                message: "This account is temporarily blocked for 3 hours after an educational-content policy violation.",
+                message: "This channel is temporarily blocked for 24 hours after an educational-content policy violation.",
                 blockedUntil: user.educationBlockedUntil,
             })
         }
@@ -223,18 +301,30 @@ export const signOut = async (req,res) => {
 
 export const googleAuth = async (req, res) => {
   try {
-    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-    const username = typeof req.body.username === "string" ? req.body.username.trim() : "";
-    const photoUrl = typeof req.body.photoUrl === "string" ? req.body.photoUrl.trim() : "";
+    const credential = typeof req.body.credential === "string" ? req.body.credential.trim() : "";
     const intent = req.body.intent || "legacy";
 
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ message: "Google account did not provide a valid email address." });
+    if (!credential || credential.length > 10000) {
+      return res.status(400).json({ message: "A valid Google sign-in credential is required." });
     }
     if (!["signup", "signin", "legacy"].includes(intent)) {
       return res.status(400).json({ message: "Choose Google sign up or Google sign in." });
     }
 
+    let googleAccount
+    try {
+      googleAccount = await verifyGoogleCredential(credential)
+    } catch (error) {
+      console.error("Google identity verification failed:", error.message || error)
+      return res.status(error.status || 503).json({
+        message: error.message || "Google identity verification is temporarily unavailable.",
+      })
+    }
+    if (!googleAccount) {
+      return res.status(401).json({ message: "Google sign-in could not verify this account. Please try again." })
+    }
+
+    const { email, username, photoUrl } = googleAccount
     let user = await User.findOne({ email });
 
     if (!user) {
@@ -245,20 +335,51 @@ export const googleAuth = async (req, res) => {
       return res.status(409).json({ message: "An EduTube account already exists for this Google account. Choose Sign in with Google." });
     }
 
-    let finalPhotoUrl = photoUrl;
-    if (photoUrl) {
-      try {
-        finalPhotoUrl = await uploadOnCloudinary(photoUrl);
-      } catch (err) {
-        console.log("Cloudinary upload failed, using original URL");
+    if (user?.deletedAt) {
+      return res.status(403).json({ message: "This account is disabled. Contact an EduTube administrator to restore access." });
+    }
+    const ownedChannel = user ? await findBlockedChannelForSignIn(user._id) : null;
+    if (ownedChannel?.deletedAt) {
+      return res.status(403).json({ message: "This account is blocked because its channel is blocked. Contact an EduTube administrator." });
+    }
+    if (ownedChannel?.educationBlockStatus === "permanent") {
+      if ((ownedChannel.paidUnblockCount || 0) < 1) {
+        const unblockToken = jwt.sign(
+          { userId: String(user._id), purpose: "channel-unblock" },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" },
+        );
+        return res.status(403).json({
+          message: "This channel is permanently blocked after five confirmed educational-content violations.",
+          unblockToken,
+          selfUnblockAvailable: true,
+        });
       }
+      return res.status(403).json({
+        message: "This channel was permanently blocked again after its one paid unblock. It cannot be unblocked again.",
+        selfUnblockAvailable: false,
+      });
+    }
+    if (ownedChannel?.educationBlockStatus === "temporary" && ownedChannel.educationBlockedUntil > new Date()) {
+      return res.status(403).json({
+        message: "This channel is temporarily blocked for 24 hours after an educational-content violation.",
+        blockedUntil: ownedChannel.educationBlockedUntil,
+      });
+    }
+    if (ownedChannel?.educationBlockStatus === "temporary") {
+      await Channel.updateOne(
+        { _id: ownedChannel._id, educationBlockStatus: "temporary" },
+        { $set: { educationBlockStatus: "active", educationBlockedUntil: null, educationBlockedAt: null } },
+      );
     }
 
     if (!user) {
+      const countryCode = getCountryCode(req);
       user = await User.create({
         username: username || email.split("@")[0],
         email,
-        photoUrl: finalPhotoUrl
+        photoUrl,
+        ...(countryCode ? { countryCode } : {})
       });
     } else {
       if (user.educationBlockStatus === "permanent") {
@@ -266,7 +387,7 @@ export const googleAuth = async (req, res) => {
       }
       if (user.educationBlockStatus === "temporary" && user.educationBlockedUntil > new Date()) {
         return res.status(403).json({
-          message: "This account is temporarily blocked for 3 hours after an educational-content policy violation.",
+          message: "This channel is temporarily blocked for 24 hours after an educational-content policy violation.",
           blockedUntil: user.educationBlockedUntil,
         });
       }
@@ -275,8 +396,8 @@ export const googleAuth = async (req, res) => {
         user.educationBlockedUntil = null;
         user.educationBlockReason = "";
       }
-      if (!user.photoUrl && finalPhotoUrl) {
-        user.photoUrl = finalPhotoUrl;
+      if (!user.photoUrl && photoUrl) {
+        user.photoUrl = photoUrl;
       }
       if (user.isModified()) await user.save();
     }

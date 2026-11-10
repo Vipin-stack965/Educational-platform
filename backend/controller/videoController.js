@@ -214,11 +214,12 @@ export const createVideo = async (req, res) => {
       const isPermanent = screening.blockType === "permanent";
       return res.status(403).json({
         message: isPermanent
-          ? `This video was not published. Channel violation ${screening.violationCount}/5: the account is permanently blocked.`
-          : `This video was not published. Channel violation ${screening.violationCount}/5: the account is blocked for 3 hours and has been signed out.`,
+          ? `This video was not published. Channel violation ${screening.violationCount}/5: the channel is permanently blocked.${screening.selfUnblockAvailable ? " Sign in to pay for its one available self-unblock." : " This channel cannot be unblocked again."}`
+          : `This video was not published. Channel violation ${screening.violationCount}/5: the channel is blocked for 24 hours and the account has been signed out.`,
         violationCount: screening.violationCount,
         blockType: screening.blockType,
         blockedUntil: screening.blockedUntil,
+        selfUnblockAvailable: screening.selfUnblockAvailable,
       });
     }
 
@@ -236,9 +237,7 @@ export const createVideo = async (req, res) => {
       return res.status(202).json({
         status: screening.status,
         moderationCaseId: screening.caseId,
-        message: screening.reviewQueue === "agent"
-          ? "AI could not confirm the educational relevance. The video was sent to the agent review queue."
-          : "AI could not confirm the educational relevance. The video was sent for moderator review.",
+        message: "AI could not confirm the educational relevance. The video was sent to Check Auth for review and will be published only if approved.",
       });
     }
 

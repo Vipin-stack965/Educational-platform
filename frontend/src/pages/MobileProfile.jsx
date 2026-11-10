@@ -49,8 +49,9 @@ function MobileProfile() {
             let username = user.displayName
             let email = user.email
             let photoUrl = user.photoURL
+            let credential = await user.getIdToken()
             
-            const result = await axios.post(serverUrl + "/api/auth/google-auth" , {username , email ,photoUrl} , {withCredentials:true})
+            const result = await axios.post(serverUrl + "/api/auth/google-auth" , {credential, username , email ,photoUrl} , {withCredentials:true})
             saveOfflineUser(result.data)
             dispatch(setUserData(result.data))
     

@@ -1,6 +1,12 @@
 import express from "express"
 import { createAgentGuestSession, createGuestSession, exitAgentReviewSession, googleAuth, resetPassword, sendOTP, signin, signOut, signUp, verifyOTP } from "../controller/authController.js"
 import upload from "../middleware/multer.js"
+import {
+  createChannelUnblockOrder,
+  getChannelUnblockQuote,
+  listEligibleChannelUnblocks,
+  verifyChannelUnblockOrder,
+} from "../controller/channelUnblockController.js"
 
 
 const authRouter = express.Router()
@@ -11,10 +17,14 @@ authRouter.post("/exit-agent-review", exitAgentReviewSession)
 authRouter.post("/signup",upload.single("photoUrl"),signUp)
 authRouter.post("/signin",signin)
 authRouter.get("/signout",signOut)
-authRouter.post("/google-auth", upload.single("photoUrl"), googleAuth);
+authRouter.post("/google-auth", googleAuth);
 authRouter.post("/sendotp",sendOTP)
 authRouter.post("/verifyotp",verifyOTP)
 authRouter.post("/resetpassword",resetPassword)
+authRouter.post("/channel-unblock/quote", getChannelUnblockQuote)
+authRouter.post("/channel-unblock/channels", listEligibleChannelUnblocks)
+authRouter.post("/channel-unblock/order", createChannelUnblockOrder)
+authRouter.post("/channel-unblock/verify", verifyChannelUnblockOrder)
 
 
 

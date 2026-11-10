@@ -5,17 +5,14 @@ import {  addToHistory, createChannel, getAllChannel, getChannel, getCurrentUser
 import upload from "../middleware/multer.js"
 import { getHelpInfo, getSettings, submitFeedback, updateSettings } from "../controller/settingsController.js"
 import User from "../model/userModel.js"
+import getCountryCode from "../config/countryCode.js"
 
 
 const userRouter = express.Router()
 userRouter.get("/getcurrentuser",isAuth,getCurrentUser)
 userRouter.post("/heartbeat", isAuth, async (req, res) => {
   if (req.isAgentReview) return res.sendStatus(204)
-  const countryHeader = (process.env.EDUTUBE_COUNTRY_HEADER || "cf-ipcountry").trim().toLowerCase()
-  const suppliedCountry = req.get(countryHeader)?.trim().toUpperCase() || ""
-  const countryCode = /^[A-Z]{2}$/.test(suppliedCountry) && suppliedCountry !== "XX"
-    ? suppliedCountry
-    : ""
+  const countryCode = getCountryCode(req)
   try {
     await User.updateOne({ _id: req.userId }, { $set: { lastSeenAt: new Date() } }, { timestamps: false })
     if (countryCode) {

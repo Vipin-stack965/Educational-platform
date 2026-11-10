@@ -21,6 +21,8 @@ services:
         generateValue: true
       - key: MONGODB_URL
         sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
       - key: CLOUDINARY_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -44,6 +46,8 @@ services:
       - key: MODERATOR_EMAILS
         sync: false
       - key: AGENT_PANEL_URL
+        sync: false
+      - key: CHECK_AUTH_URL
         sync: false
       - key: AGENT_PANEL_FRONTEND_URL
         sync: false

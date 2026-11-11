@@ -31,9 +31,9 @@ Blueprints:
 | Project | Frontend | Backend |
 |---|---|---|
 | EduTube | `https://edutube-frontend-qr5q.onrender.com` | `https://edutube-backend-gfmr.onrender.com` |
-| Admin Panel | `https://admin-panel-frontend.onrender.com` | `https://admin-panel-backend.onrender.com` |
+| Admin Panel | `https://admin-panel-frontend.onrender.com` | `https://admin-panel-backend-euwk.onrender.com` |
 | Agent Panel | `https://agent-panel-frontend.onrender.com` | `https://agent-panel-backend.onrender.com` |
-| Check Auth | `https://check-auth-frontend.onrender.com` | `https://check-auth-backend.onrender.com` |
+| Check Auth | `https://check-auth-frontend.onrender.com` | `https://check-auth-backend-kupc.onrender.com` |
 
 Render may show a different public hostname (for example, when a service already
 exists or a custom domain is used). In that case, replace the example URL in all

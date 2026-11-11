@@ -25,13 +25,13 @@ domain.
 ## Deploy order and service URLs
 
 Create/deploy the EduTube Blueprint first, then Agent Panel, Check Auth, and
-Admin Panel. The inter-project URLs below assume the service names from the
+Admin Studio. The inter-project URLs below assume the service names from the
 Blueprints:
 
 | Project | Frontend | Backend |
 |---|---|---|
 | EduTube | `https://edutube-frontend-qr5q.onrender.com` | `https://edutube-backend-gfmr.onrender.com` |
-| Admin Panel | `https://admin-panel-frontend.onrender.com` | `https://admin-panel-backend-euwk.onrender.com` |
+| Admin Studio | `https://edutube-admin-studio-frontend.onrender.com` | `https://edutube-admin-studio-backend.onrender.com` |
 | Agent Panel | `https://agent-panel-frontend.onrender.com` | `https://agent-panel-backend.onrender.com` |
 | Check Auth | `https://check-auth-frontend.onrender.com` | `https://check-auth-backend-kupc.onrender.com` |
 
@@ -56,22 +56,22 @@ pair must be identical:
 |---|---|---|
 | EduTube backend | `AGENT_PANEL_INTEGRATION_SECRET` | Agent Panel `AGENT_PANEL_INTEGRATION_SECRET` |
 | EduTube backend | `AGENT_PANEL_INTEGRATION_SECRET` | Check Auth `AGENT_PANEL_INTEGRATION_SECRET` |
-| Admin Panel backend | `AGENT_PANEL_INTEGRATION_SECRET` | Agent Panel `ADMIN_STUDIO_INTEGRATION_SECRET` |
-| Admin Panel backend | `EMPLOYEE_DIRECTORY_SECRET` | Check Auth `ADMIN_DIRECTORY_INTEGRATION_SECRET` |
-| Admin Panel backend | `EDUTUBE_INTEGRATION_SECRET` | EduTube/Agent Panel `AGENT_PANEL_INTEGRATION_SECRET` |
+| Admin Studio backend | `AGENT_PANEL_INTEGRATION_SECRET` | Agent Panel `ADMIN_STUDIO_INTEGRATION_SECRET` |
+| Admin Studio backend | `EMPLOYEE_DIRECTORY_SECRET` | Check Auth `ADMIN_DIRECTORY_INTEGRATION_SECRET` |
+| Admin Studio backend | `EDUTUBE_INTEGRATION_SECRET` | EduTube/Agent Panel `AGENT_PANEL_INTEGRATION_SECRET` |
 | EduTube backend | `AGENT_PANEL_URL` | Agent Panel backend URL |
 | EduTube backend | `CHECK_AUTH_URL` | Check Auth backend URL |
 | EduTube backend | `AGENT_PANEL_FRONTEND_URL` | Agent Panel frontend URL |
-| Admin Panel backend | `AGENT_PANEL_API_URL` | Agent Panel backend URL |
-| Admin Panel backend | `CHECK_AUTH_API_URL` | Check Auth backend URL |
-| Admin Panel backend | `EDUTUBE_API_URL` | EduTube backend URL |
+| Admin Studio backend | `AGENT_PANEL_API_URL` | Agent Panel backend URL |
+| Admin Studio backend | `CHECK_AUTH_API_URL` | Check Auth backend URL |
+| Admin Studio backend | `EDUTUBE_API_URL` | EduTube backend URL |
 | Agent Panel backend | `EDUTUBE_API_URL` | EduTube backend URL |
 | Check Auth backend | `EDUTUBE_API_URL` | EduTube backend URL |
-| Admin Panel backend | `PANEL_ORIGIN` | Admin Panel frontend origin |
+| Admin Studio backend | `PANEL_ORIGIN` | Admin Studio frontend origin |
 | Agent Panel backend | `PANEL_ORIGIN` | Agent Panel frontend origin |
-| Agent Panel backend | `ADMIN_STUDIO_ORIGIN` | Admin Panel frontend origin |
+| Agent Panel backend | `ADMIN_STUDIO_ORIGIN` | Admin Studio frontend origin |
 | Check Auth backend | `PANEL_ORIGIN` | Check Auth frontend origin |
-| Check Auth backend | `ADMIN_STUDIO_ORIGIN` | Admin Panel frontend origin |
+| Check Auth backend | `ADMIN_STUDIO_ORIGIN` | Admin Studio frontend origin |
 
 Use the corresponding frontend API/app URL build variables from each Blueprint.
 They are baked into the static build, so rebuild/redeploy the frontend after any
